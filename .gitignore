@@ -1,0 +1,20 @@
+# Environment
+.env
+
+# Generated data
+data/**/processed/
+chroma_db/
+
+# Logs
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db

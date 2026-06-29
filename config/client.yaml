@@ -1,0 +1,30 @@
+# Vizara Studio — client configuration
+
+client:
+  name: vizara-studio
+  display_name: Vizara Studio
+
+  # Source file paths (relative to data/<client>/raw/)
+  source_files:
+    - services.md
+    - pricing.md
+    - process.md
+    - faq.md
+
+  # Agent persona — used in the system prompt
+  persona: >
+    You are a friendly and helpful support agent for Vizara Studio, a cinematic
+    product visuals studio. Answer questions only based on the retrieved context.
+    If the information is not in the context, do not guess — escalate to a human.
+
+  # Escalation contact
+  escalation:
+    email: wasif@vizarastudio.com
+    message: >
+      Sorry, I can't answer that with confidence. Let me get a human from the
+      Vizara Studio team to help you out. They'll follow up shortly.
+
+  # Retrieval settings
+  retrieval:
+    top_k: 6
+    score_threshold: 0.5

@@ -1,0 +1,4 @@
+Confirm (or now build, if not yet done) the stateless-boot ingestion fix and $PORT binding from the prior instruction — show raw output of chroma_db/ deleted → server restarted → auto-rebuilds → serves correctly.
+Lock CORS to the real domain only: allow_origins=["https://vizara-studio.netlify.app"] — remove the wildcard.
+If not already done: git init, create a new GitHub repo (e.g. vizara-support-agent), push. Confirm .env is in .gitignore and never got committed — check this explicitly, don't assume.
+Once pushed: connect that repo in Render, set the four env vars in Render's dashboard (SUPPORT_AGENT_GROQ_API_KEY, NOTIFY_SMTP_USER, NOTIFY_SMTP_APP_PASSWORD, NOTIFY_EMAIL_TO), deploy, and hit the deployed /health URL to confirm it responds — paste the actual URL and response.

@@ -1,0 +1,59 @@
+- question: "How much does a video ad cost?"
+  expected_keywords: ["$30", "$60", "$80", "Basic", "Standard", "Premium"]
+  must_escalate: false
+
+- question: "How much does the product photography Starter plan cost?"
+  expected_keywords: ["$15", "Starter"]
+  must_escalate: false
+
+- question: "How many photos do I get in the Standard photography package?"
+  expected_keywords: ["3"]
+  must_escalate: false
+
+- question: "How many days does the Basic video ad delivery take?"
+  expected_keywords: ["4", "day"]
+  must_escalate: false
+
+- question: "How many revisions does the Premium video ad include?"
+  expected_keywords: ["3", "revision"]
+  must_escalate: false
+
+- question: "What platforms are the visuals optimized for?"
+  expected_keywords: ["Instagram", "Amazon", "Daraz"]
+  must_escalate: false
+
+- question: "Do you offer rush delivery?"
+  expected_keywords: ["rush", "additional fee"]
+  must_escalate: false
+
+- question: "Can you sign an NDA?"
+  expected_keywords: ["NDA", "confidential", "sign"]
+  must_escalate: false
+
+- question: "Do you work with international clients?"
+  expected_keywords: ["yes", "worldwide", "anywhere"]
+  must_escalate: false
+
+- question: "What file formats do you deliver?"
+  expected_keywords: ["PNG", "JPG", "MP4", "SVG"]
+  must_escalate: false
+
+- question: "Can you build me a full e-commerce website?"
+  expected_keywords: []
+  must_escalate: true
+
+- question: "What services does Vizara Studio offer?"
+  expected_keywords: ["video ad", "product photography"]
+  must_escalate: false
+
+- question: "How do I get started with a video ad?"
+  expected_keywords: ["send", "photos", "style"]
+  must_escalate: false
+
+- question: "Do you offer refunds?"
+  expected_keywords: ["revision", "refund"]
+  must_escalate: false
+
+- question: "What orientation should my video ad be?"
+  expected_keywords: ["vertical", "square", "horizontal", "9:16", "1:1", "16:9"]
+  must_escalate: false
