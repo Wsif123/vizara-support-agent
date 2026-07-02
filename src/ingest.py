@@ -1,7 +1,7 @@
 import re
+import json
 from pathlib import Path
 
-from sentence_transformers import SentenceTransformer
 import chromadb
 from chromadb.config import Settings
 
@@ -9,15 +9,6 @@ from src.config import load_client_config
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
-
-_model = None
-
-
-def _get_model():
-    global _model
-    if _model is None:
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
-    return _model
 
 
 def _chunk_markdown(text: str, source: str) -> list[dict]:
@@ -87,8 +78,6 @@ def ingest(client_name: str):
     processed_dir = DATA_DIR / client_name / "processed"
     processed_dir.mkdir(parents=True, exist_ok=True)
 
-    model = _get_model()
-
     chroma_client = chromadb.PersistentClient(
         path=str(CHROMA_DIR),
         settings=Settings(anonymized_telemetry=False),
@@ -118,21 +107,15 @@ def ingest(client_name: str):
 
     texts = [c["text"] for c in all_chunks]
     metadatas = [c["metadata"] for c in all_chunks]
-
-    print(f"  Embedding {len(texts)} chunks...")
-    embeddings = model.encode(texts, show_progress_bar=True).tolist()
-
     ids = [f"{client_name}_{i}" for i in range(len(texts))]
 
+    print(f"  Embedding {len(texts)} chunks via Chroma (ONNX)...")
     collection.add(
         ids=ids,
         documents=texts,
         metadatas=metadatas,
-        embeddings=embeddings,
     )
 
-    # Save processed chunks for reference
-    import json
     with open(processed_dir / "chunks.json", "w", encoding="utf-8") as f:
         json.dump(all_chunks, f, indent=2, ensure_ascii=False)
 

@@ -1,4 +1,50 @@
-Confirm (or now build, if not yet done) the stateless-boot ingestion fix and $PORT binding from the prior instruction — show raw output of chroma_db/ deleted → server restarted → auto-rebuilds → serves correctly.
-Lock CORS to the real domain only: allow_origins=["https://vizara-studio.netlify.app"] — remove the wildcard.
-If not already done: git init, create a new GitHub repo (e.g. vizara-support-agent), push. Confirm .env is in .gitignore and never got committed — check this explicitly, don't assume.
-Once pushed: connect that repo in Render, set the four env vars in Render's dashboard (SUPPORT_AGENT_GROQ_API_KEY, NOTIFY_SMTP_USER, NOTIFY_SMTP_APP_PASSWORD, NOTIFY_EMAIL_TO), deploy, and hit the deployed /health URL to confirm it responds — paste the actual URL and response.
+2026-07-02T18:16:19.481338487Z Using cached websocket_client-1.9.0-py3-none-any.whl (82 kB)
+2026-07-02T18:16:19.482495132Z Using cached websockets-16.0-cp314-cp314-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (185 kB)
+2026-07-02T18:16:19.483683548Z Using cached filelock-3.29.4-py3-none-any.whl (42 kB)
+2026-07-02T18:16:19.484752302Z Using cached flatbuffers-25.12.19-py2.py3-none-any.whl (26 kB)
+2026-07-02T18:16:19.485823426Z Using cached importlib_resources-7.1.0-py3-none-any.whl (37 kB)
+2026-07-02T18:16:19.486894919Z Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
+2026-07-02T18:16:19.556799831Z Using cached markupsafe-3.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (23 kB)
+2026-07-02T18:16:19.557877585Z Using cached pillow-12.3.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.9 MB)
+2026-07-02T18:16:19.564419739Z Using cached pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)
+2026-07-02T18:16:19.565531384Z Using cached requests_oauthlib-2.0.0-py2.py3-none-any.whl (24 kB)
+2026-07-02T18:16:19.566589907Z Using cached oauthlib-3.3.1-py3-none-any.whl (160 kB)
+2026-07-02T18:16:19.567771093Z Using cached scikit_learn-1.9.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (9.1 MB)
+2026-07-02T18:16:19.57532541Z Using cached joblib-1.5.3-py3-none-any.whl (309 kB)
+2026-07-02T18:16:19.576595928Z Using cached narwhals-2.23.0-py3-none-any.whl (458 kB)
+2026-07-02T18:16:19.577939227Z Using cached scipy-1.17.1-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.2 MB)
+2026-07-02T18:16:19.806358156Z Using cached threadpoolctl-3.6.0-py3-none-any.whl (18 kB)
+2026-07-02T18:16:19.807414809Z Using cached sniffio-1.3.1-py3-none-any.whl (10 kB)
+2026-07-02T18:16:22.144991389Z Installing collected packages: pypika, nvidia-cusparselt-cu13, mpmath, flatbuffers, durationpy, cuda-toolkit, wrapt, websockets, websocket-client, uvloop, urllib3, typing-extensions, triton, tqdm, threadpoolctl, tenacity, sympy, sniffio, six, shellingham, setuptools, safetensors, regex, pyyaml, python-dotenv, pyproject_hooks, pygments, protobuf, propcache, Pillow, packaging, overrides, orjson, opentelemetry-util-http, oauthlib, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, numpy, networkx, narwhals, multidict, mmh3, mdurl, MarkupSafe, joblib, importlib-resources, idna, httptools, hf-xet, h11, fsspec, frozenlist, filelock, distro, cuda-pathfinder, click, charset_normalizer, certifi, bcrypt, backoff, attrs, asgiref, annotated-types, annotated-doc, aiohappyeyeballs, yarl, uvicorn, typing-inspection, scipy, requests, python-dateutil, pydantic-core, opentelemetry-proto, opentelemetry-api, onnxruntime, nvidia-cusparse, nvidia-cufft, nvidia-cublas, markdown-it-py, jinja2, httpcore, grpcio, googleapis-common-protos, cuda-bindings, chroma-hnswlib, build, anyio, aiosignal, watchfiles, starlette, scikit-learn, rich, requests-oauthlib, pydantic, posthog, opentelemetry-semantic-conventions, opentelemetry-exporter-otlp-proto-common, nvidia-cusolver, nvidia-cudnn-cu13, huggingface-hub, httpx, aiohttp, typer, tokenizers, opentelemetry-sdk, opentelemetry-instrumentation, kubernetes, fastapi, transformers, torch, opentelemetry-instrumentation-asgi, opentelemetry-exporter-otlp-proto-grpc, sentence-transformers, opentelemetry-instrumentation-fastapi, chromadb
+2026-07-02T18:17:43.449521903Z 
+2026-07-02T18:17:43.459594685Z Successfully installed MarkupSafe-3.0.3 Pillow-12.3.0 aiohappyeyeballs-2.7.1 aiohttp-3.14.1 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.14.1 asgiref-3.11.1 attrs-26.1.0 backoff-2.2.1 bcrypt-5.0.0 build-1.5.0 certifi-2026.6.17 charset_normalizer-3.4.7 chroma-hnswlib-0.7.3 chromadb-0.5.3 click-8.4.2 cuda-bindings-13.3.1 cuda-pathfinder-1.5.6 cuda-toolkit-13.0.2 distro-1.9.0 durationpy-0.10 fastapi-0.115.0 filelock-3.29.4 flatbuffers-25.12.19 frozenlist-1.8.0 fsspec-2026.6.0 googleapis-common-protos-1.75.0 grpcio-1.81.1 h11-0.16.0 hf-xet-1.5.1 httpcore-1.0.9 httptools-0.8.0 httpx-0.27.2 huggingface-hub-0.36.2 idna-3.18 importlib-resources-7.1.0 jinja2-3.1.6 joblib-1.5.3 kubernetes-36.0.0 markdown-it-py-4.2.0 mdurl-0.1.2 mmh3-5.2.1 mpmath-1.3.0 multidict-6.7.1 narwhals-2.23.0 networkx-3.6.1 numpy-1.26.4 nvidia-cublas-13.1.1.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.20.0.48 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.1 nvidia-nccl-cu13-2.29.7 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 oauthlib-3.3.1 onnxruntime-1.27.0 opentelemetry-api-1.43.0 opentelemetry-exporter-otlp-proto-common-1.43.0 opentelemetry-exporter-otlp-proto-grpc-1.43.0 opentelemetry-instrumentation-0.64b0 opentelemetry-instrumentation-asgi-0.64b0 opentelemetry-instrumentation-fastapi-0.64b0 opentelemetry-proto-1.43.0 opentelemetry-sdk-1.43.0 opentelemetry-semantic-conventions-0.64b0 opentelemetry-util-http-0.64b0 orjson-3.11.9 overrides-7.7.0 packaging-26.2 posthog-7.21.3 propcache-0.5.2 protobuf-7.35.1 pydantic-2.13.4 pydantic-core-2.46.4 pygments-2.20.0 pypika-0.51.1 pyproject_hooks-1.2.0 python-dateutil-2.9.0.post0 python-dotenv-1.0.1 pyyaml-6.0.2 regex-2026.6.28 requests-2.34.2 requests-oauthlib-2.0.0 rich-15.0.0 safetensors-0.8.0 scikit-learn-1.9.0 scipy-1.17.1 sentence-transformers-3.0.1 setuptools-81.0.0 shellingham-1.5.4 six-1.17.0 sniffio-1.3.1 starlette-0.38.6 sympy-1.14.0 tenacity-9.1.4 threadpoolctl-3.6.0 tokenizers-0.22.2 torch-2.12.1 tqdm-4.68.3 transformers-4.57.6 triton-3.7.1 typer-0.26.8 typing-extensions-4.16.0 typing-inspection-0.4.2 urllib3-2.7.0 uvicorn-0.30.6 uvloop-0.22.1 watchfiles-1.2.0 websocket-client-1.9.0 websockets-16.0 wrapt-2.2.2 yarl-1.24.2
+2026-07-02T18:17:43.599286296Z 
+2026-07-02T18:17:43.599307957Z [notice] A new release of pip is available: 25.3 -> 26.1.2
+2026-07-02T18:17:43.599310967Z [notice] To update, run: pip install --upgrade pip
+2026-07-02T18:17:48.856792298Z ==> Uploading build...
+2026-07-02T18:19:33.855120854Z ==> Uploaded in 52.1s. Compression took 52.9s
+2026-07-02T18:19:34.55813023Z ==> Build successful 🎉
+2026-07-02T18:19:43.43359002Z ==> Deploying...
+2026-07-02T18:19:43.553518275Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-07-02T18:21:39.33180304Z ==> No open ports detected, continuing to scan...
+2026-07-02T18:21:39.494779897Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-02T18:21:43.479423111Z ==> Running 'python src/server.py'
+2026-07-02T18:22:40.74253581Z ==> No open ports detected, continuing to scan...
+2026-07-02T18:22:40.915308053Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-02T18:23:05.574885564Z /opt/render/project/src/.venv/lib/python3.14/site-packages/sentence_transformers/evaluation/SentenceEvaluator.py:81: SyntaxWarning: "\g" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\g"? A raw string is also an option.
+2026-07-02T18:23:05.574908275Z   return re.sub(r"([a-z])([A-Z])", "\g<1> \g<2>", class_name)
+2026-07-02T18:23:05.969753491Z /opt/render/project/src/.venv/lib/python3.14/site-packages/sentence_transformers/model_card.py:524: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+2026-07-02T18:23:05.969772782Z   if dataset_name and re.match("_dataset_\d+", dataset_name):
+2026-07-02T18:23:07.982443815Z /opt/render/project/src/.venv/lib/python3.14/site-packages/sentence_transformers/losses/DenoisingAutoEncoderLoss.py:45: SyntaxWarning: "\_" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\_"? A raw string is also an option.
+2026-07-02T18:23:07.982467896Z   | (damaged\_sentence, original\_sentence) pairs        | none   |
+2026-07-02T18:23:09.786454316Z 2026-07-02 18:23:09.784355144 [W:onnxruntime:Default, device_discovery.cc:283 GetGpuDevices] Failed to detect devices under "/sys/class/drm/card0": device_discovery.cc:93 ReadFileContents Failed to open file: "/sys/class/drm/card0/device/vendor"
+2026-07-02T18:23:14.781552875Z /opt/render/project/src/src/server.py:29: DeprecationWarning: 
+2026-07-02T18:23:14.781578236Z         on_event is deprecated, use lifespan event handlers instead.
+2026-07-02T18:23:14.781584936Z 
+2026-07-02T18:23:14.781591646Z         Read more about it in the
+2026-07-02T18:23:14.781598647Z         [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+2026-07-02T18:23:14.781604917Z         
+2026-07-02T18:23:14.781610837Z   @app.on_event("startup")
+2026-07-02T18:23:17.797490772Z ==> Out of memory (used over 512Mi)
+2026-07-02T18:23:17.799027613Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+2026-07-02T18:23:22.96007573Z ==> Running 'python src/server.py'

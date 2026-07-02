@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from sentence_transformers import SentenceTransformer
 import chromadb
 from chromadb.config import Settings
 
@@ -8,15 +7,7 @@ from src.config import load_client_config
 
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
 
-_model = None
 _collection = None
-
-
-def _get_model():
-    global _model
-    if _model is None:
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
-    return _model
 
 
 def _get_collection(client_name: str):
@@ -37,13 +28,10 @@ def query(client_name: str, text: str, top_k: int = None) -> list[dict]:
         top_k = config["retrieval"]["top_k"]
     score_threshold = config["retrieval"]["score_threshold"]
 
-    model = _get_model()
     collection = _get_collection(client_name)
 
-    query_embedding = model.encode(text).tolist()
-
     results = collection.query(
-        query_embeddings=[query_embedding],
+        query_texts=[text],
         n_results=top_k,
         include=["documents", "metadatas", "distances"],
     )
@@ -52,7 +40,7 @@ def query(client_name: str, text: str, top_k: int = None) -> list[dict]:
     if results["documents"] and results["documents"][0]:
         for i, doc in enumerate(results["documents"][0]):
             distance = results["distances"][0][i] if results["distances"] else 0
-            score = 1.0 - (distance / 2.0)  # cosine distance → similarity [0,1]
+            score = 1.0 - (distance / 2.0)
             score = max(0.0, min(1.0, score))
             docs.append({
                 "text": doc,
