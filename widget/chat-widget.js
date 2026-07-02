@@ -1,5 +1,6 @@
 (function () {
-  const BACKEND_URL = window.__VIZARA_BACKEND_URL__ || "http://localhost:8000/chat";
+  const scriptTag = document.currentScript;
+  const BACKEND_URL = (scriptTag && scriptTag.getAttribute("data-api-url")) || "http://localhost:8000/chat";
 
   const STYLES = `
     #vizara-widget * { box-sizing: border-box; margin: 0; padding: 0; }

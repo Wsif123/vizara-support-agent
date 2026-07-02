@@ -19,7 +19,10 @@ app = FastAPI(title="Vizara Support Agent")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://vizara-studio.netlify.app"],
+    allow_origins=[
+        "https://vizara-studio.netlify.app",
+        "https://vizara-support-agent.onrender.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
