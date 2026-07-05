@@ -21,6 +21,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://vizara-studio.netlify.app",
+        "https://vizarastudioo.netlify.app",
         "https://vizara-support-agent.onrender.com",
     ],
     allow_credentials=True,
