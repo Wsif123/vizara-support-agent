@@ -1,1 +1,16 @@
-The chat widget fails with "Sorry, something went wrong" after the Netlify domain changed from vizara-studio.netlify.app to vizarastudioo.netlify.app. Check the CORS configuration in the vizara-support-agent backend (likely in server.py or wherever FastAPI's CORSMiddleware is configured) — it's likely allowlisting the old domain only. Update the allowed origins to include https://vizarastudioo.netlify.app, and check the Render environment variables too in case the frontend URL is also stored there (e.g. for CORS or callback purposes). Push the fix, then confirm on Render logs that a real chat request from the new domain succeeds with a 200, not a CORS rejection.
+2026-07-09T10:34:32.625347612Z ==> Cloning from https://github.com/Wsif123/vizara-support-agent
+2026-07-09T10:34:33.351450225Z ==> Checking out commit 9424d7dc735b2b1e7834a5b31776001d02160677 in branch master
+2026-07-09T10:34:46.9110073Z #1 [internal] load build definition from Dockerfile
+2026-07-09T10:34:48.0690853Z #1 transferring dockerfile:
+2026-07-09T10:34:48.272432549Z #1 transferring dockerfile: 490B 0.1s done
+2026-07-09T10:34:48.704847726Z #1 DONE 1.9s
+2026-07-09T10:34:51.176484205Z Dockerfile:15
+2026-07-09T10:34:51.176507795Z --------------------
+2026-07-09T10:34:51.176513615Z   13 |     
+2026-07-09T10:34:51.176517905Z   14 |     RUN python -c "
+2026-07-09T10:34:51.176521775Z   15 | >>> import sys; sys.path.insert(0, '.')
+2026-07-09T10:34:51.176524995Z   16 |     from src.ingest import ingest
+2026-07-09T10:34:51.176528375Z   17 |     ingest('vizara-studio')
+2026-07-09T10:34:51.176531546Z --------------------
+2026-07-09T10:34:51.176535266Z error: failed to solve: dockerfile parse error on line 15: unknown instruction: import
+2026-07-09T10:34:53.76126626Z error: exit status 1
