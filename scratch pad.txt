@@ -1,16 +1,50 @@
-2026-07-09T10:34:32.625347612Z ==> Cloning from https://github.com/Wsif123/vizara-support-agent
-2026-07-09T10:34:33.351450225Z ==> Checking out commit 9424d7dc735b2b1e7834a5b31776001d02160677 in branch master
-2026-07-09T10:34:46.9110073Z #1 [internal] load build definition from Dockerfile
-2026-07-09T10:34:48.0690853Z #1 transferring dockerfile:
-2026-07-09T10:34:48.272432549Z #1 transferring dockerfile: 490B 0.1s done
-2026-07-09T10:34:48.704847726Z #1 DONE 1.9s
-2026-07-09T10:34:51.176484205Z Dockerfile:15
-2026-07-09T10:34:51.176507795Z --------------------
-2026-07-09T10:34:51.176513615Z   13 |     
-2026-07-09T10:34:51.176517905Z   14 |     RUN python -c "
-2026-07-09T10:34:51.176521775Z   15 | >>> import sys; sys.path.insert(0, '.')
-2026-07-09T10:34:51.176524995Z   16 |     from src.ingest import ingest
-2026-07-09T10:34:51.176528375Z   17 |     ingest('vizara-studio')
-2026-07-09T10:34:51.176531546Z --------------------
-2026-07-09T10:34:51.176535266Z error: failed to solve: dockerfile parse error on line 15: unknown instruction: import
-2026-07-09T10:34:53.76126626Z error: exit status 1
+2026-07-09T10:41:25.053323922Z #11 12.94           self.run_command(cmd_name)
+2026-07-09T10:41:25.053326343Z #11 12.94         File "/tmp/pip-build-env-r2upz8au/overlay/lib/python3.12/site-packages/setuptools/_distutils/cmd.py", line 341, in run_command
+2026-07-09T10:41:25.053328803Z #11 12.94           self.distribution.run_command(command)
+2026-07-09T10:41:25.053340653Z #11 12.94         File "/tmp/pip-build-env-r2upz8au/overlay/lib/python3.12/site-packages/setuptools/dist.py", line 1107, in run_command
+2026-07-09T10:41:25.053343173Z #11 12.94           super().run_command(command)
+2026-07-09T10:41:25.053345623Z #11 12.94         File "/tmp/pip-build-env-r2upz8au/overlay/lib/python3.12/site-packages/setuptools/_distutils/dist.py", line 1020, in run_command
+2026-07-09T10:41:25.053348103Z #11 12.94           cmd_obj.run()
+2026-07-09T10:41:25.053350523Z #11 12.94         File "/tmp/pip-build-env-r2upz8au/overlay/lib/python3.12/site-packages/setuptools/command/build_ext.py", line 97, in run
+2026-07-09T10:41:25.053358084Z #11 12.94           _build_ext.run(self)
+2026-07-09T10:41:25.053360653Z #11 12.94         File "/tmp/pip-build-env-r2upz8au/overlay/lib/python3.12/site-packages/setuptools/_distutils/command/build_ext.py", line 367, in run
+2026-07-09T10:41:25.053363124Z #11 12.94           self.build_extensions()
+2026-07-09T10:41:25.053365594Z #11 12.94         File "<string>", line 102, in build_extensions
+2026-07-09T10:41:25.053368034Z #11 12.94         File "<string>", line 69, in cpp_flag
+2026-07-09T10:41:25.053370524Z #11 12.94       RuntimeError: Unsupported compiler -- at least C++11 support is needed!
+2026-07-09T10:41:25.053373074Z #11 12.94       [end of output]
+2026-07-09T10:41:25.053382934Z #11 12.94   
+2026-07-09T10:41:25.053385584Z #11 12.94   note: This error originates from a subprocess, and is likely not a problem with pip.
+2026-07-09T10:41:25.053388074Z #11 12.94   ERROR: Failed building wheel for chroma-hnswlib
+2026-07-09T10:41:25.053390525Z #11 12.94 Failed to build chroma-hnswlib
+2026-07-09T10:41:25.053392965Z #11 13.01 
+2026-07-09T10:41:25.053395495Z #11 13.01 [notice] A new release of pip is available: 25.0.1 -> 26.1.2
+2026-07-09T10:41:25.053397975Z #11 13.01 [notice] To update, run: pip install --upgrade pip
+2026-07-09T10:41:25.053400975Z #11 13.01 ERROR: Failed to build installable wheels for some pyproject.toml based projects (chroma-hnswlib)
+2026-07-09T10:41:25.289665405Z #11 ERROR: process "/bin/sh -c pip install --no-cache-dir -r requirements.txt" did not complete successfully: exit code: 1
+2026-07-09T10:41:25.315220328Z ------
+2026-07-09T10:41:25.315232848Z  > importing cache manifest
+2026-07-09T10:41:25.315236668Z ------
+2026-07-09T10:41:25.315240018Z ------
+2026-07-09T10:41:25.315244548Z  > [5/7] RUN pip install --no-cache-dir -r requirements.txt:
+2026-07-09T10:41:25.315251409Z 12.94       RuntimeError: Unsupported compiler -- at least C++11 support is needed!
+2026-07-09T10:41:25.315256709Z 12.94       [end of output]
+2026-07-09T10:41:25.315261579Z 12.94   
+2026-07-09T10:41:25.315266329Z 12.94   note: This error originates from a subprocess, and is likely not a problem with pip.
+2026-07-09T10:41:25.315271149Z 12.94   ERROR: Failed building wheel for chroma-hnswlib
+2026-07-09T10:41:25.315278039Z 12.94 Failed to build chroma-hnswlib
+2026-07-09T10:41:25.31528123Z 13.01 
+2026-07-09T10:41:25.31528501Z 13.01 [notice] A new release of pip is available: 25.0.1 -> 26.1.2
+2026-07-09T10:41:25.31528812Z 13.01 [notice] To update, run: pip install --upgrade pip
+2026-07-09T10:41:25.31529217Z 13.01 ERROR: Failed to build installable wheels for some pyproject.toml based projects (chroma-hnswlib)
+2026-07-09T10:41:25.31529528Z ------
+2026-07-09T10:41:25.315999682Z Dockerfile:10
+2026-07-09T10:41:25.316012783Z --------------------
+2026-07-09T10:41:25.316017063Z    8 |     
+2026-07-09T10:41:25.316020453Z    9 |     COPY requirements.txt .
+2026-07-09T10:41:25.316023713Z   10 | >>> RUN pip install --no-cache-dir -r requirements.txt
+2026-07-09T10:41:25.316026813Z   11 |     
+2026-07-09T10:41:25.316029843Z   12 |     COPY . .
+2026-07-09T10:41:25.316032903Z --------------------
+2026-07-09T10:41:25.316037714Z error: failed to solve: process "/bin/sh -c pip install --no-cache-dir -r requirements.txt" did not complete successfully: exit code: 1
+2026-07-09T10:41:25.332498337Z error: exit status 1
