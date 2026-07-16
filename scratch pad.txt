@@ -1,6 +1,14 @@
 Task for Deepseek
 
-Fix Dockerfile:18 — change ingest('vizara-studio') to ingest('vizara').
-Before pushing again, grep the whole repo for any other leftover references to 'vizara-studio' as a client_id (not the Netlify domain, which is legitimately vizarastudioo.netlify.app — that's a different string). Paste what it finds.
-Confirm config/client_vizara.yaml exists and is the one that gets picked up.
-Re-run the build locally if possible (docker build . or equivalent) to confirm it completes past this step before pushing again — cheaper to catch here than waiting on another Render build cycle.
+Find the /health route in server.py.
+Add a HEAD handler alongside the existing GET one. In FastAPI this is usually just:
+
+python@app.get("/health")
+@app.head("/health")
+async def health():
+    ...
+(or however the existing route is defined — same function, just decorated for both methods)
+
+Confirm it doesn't need to return a body for HEAD — HTTP spec says HEAD responses shouldn't include a body anyway, FastAPI usually handles this correctly for a GET/HEAD pair automatically, but worth a quick check that the response isn't erroring on it.
+Test locally or against production with a HEAD request (curl -I or similar) and paste the raw status code — should be 200, not 405.
+Push and let Render redeploy.

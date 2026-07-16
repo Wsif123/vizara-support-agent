@@ -92,7 +92,8 @@ class ChatResponse(BaseModel):
     escalation_reason: str = None
 
 
-@app.get("/health")
+@app.get("/health", include_in_schema=False)
+@app.head("/health", include_in_schema=False)
 def health():
     return {"status": "ok"}
 
