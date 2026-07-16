@@ -13,7 +13,7 @@ queries = [
 
 for q in queries:
     print(f"=== Query: {q} ===")
-    docs = retrieve("vizara-studio", q)
+    docs = retrieve("vizara", q)
     print(f"  Retrieved: {len(docs)} docs")
     for d in docs:
         print(f"  Score: {d['score']:.4f} | Passed: {d['passed']} | Source: {d['metadata'].get('source')}")
