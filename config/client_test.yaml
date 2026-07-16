@@ -1,0 +1,11 @@
+﻿client:
+  name: test
+  display_name: Test Client
+  source_files: []
+  persona: "You are a test support agent."
+  escalation:
+    email: test@example.com
+    message: "Test escalation."
+  retrieval:
+    top_k: 6
+    score_threshold: 0.5

@@ -9,13 +9,27 @@ from src.notifier import send_escalation_email
 OFF_TOPIC_REDIRECT = "That's not something Vizara Studio offers — we specialize in cinematic video ads and product photography for products. Do you have any other questions about our video ads or product photography?"
 
 
-def answer(session_id: str, user_query: str) -> dict:
-    config = load_client_config()
-    client_name = config["name"]
+def answer(session_id: str, user_query: str, client_id: str) -> dict:
+    config = load_client_config(client_id)
 
     add_message(session_id, "user", user_query)
 
-    retrieved_docs = retrieve(client_name, user_query)
+    retrieved_docs = retrieve(client_id, user_query)
+
+    # If no relevant context found, skip LLM and escalate directly
+    relevant_docs = [d for d in retrieved_docs if d.get("passed")]
+    if not relevant_docs:
+        add_message(session_id, "assistant", "I don't have that information — let me connect you with a human.")
+        logger.log_exchange(
+            session_id=session_id,
+            client_id=client_id,
+            query=user_query,
+            response="I don't have that information — let me connect you with a human.",
+            escalated=True,
+            escalation_reason="no_relevant_context",
+            context=retrieved_docs,
+        )
+        return {"answer": "I don't have that information — let me connect you with a human.", "escalated": True, "escalation_reason": "no_relevant_context"}
 
     context_text = "\n\n".join(
         [f"[Source: {d['metadata'].get('source', 'unknown')}]\n{d['text']}" for d in retrieved_docs]
@@ -27,7 +41,7 @@ def answer(session_id: str, user_query: str) -> dict:
         history_lines = [f"{msg['role'].capitalize()}: {msg['content']}" for msg in history[:-1]]
         history_text = "\n".join(history_lines)
 
-    system_prompt, user_prompt = build_classification_prompt(user_query, history_text, context_text)
+    system_prompt, user_prompt = build_classification_prompt(user_query, history_text, context_text, persona=config.get("persona"))
     raw_response = call_llm(system_prompt, user_prompt, temperature=0.0)
 
     result = parse_classification_response(raw_response)
@@ -38,6 +52,7 @@ def answer(session_id: str, user_query: str) -> dict:
         add_message(session_id, "assistant", answer_text)
         logger.log_exchange(
             session_id=session_id,
+            client_id=client_id,
             query=user_query,
             response=answer_text,
             escalated=False,
@@ -49,6 +64,7 @@ def answer(session_id: str, user_query: str) -> dict:
         add_message(session_id, "assistant", answer_text)
         logger.log_exchange(
             session_id=session_id,
+            client_id=client_id,
             query=user_query,
             response=answer_text,
             escalated=False,
@@ -59,7 +75,6 @@ def answer(session_id: str, user_query: str) -> dict:
     # NEEDS_HUMAN
     email = get_email(session_id)
     if not email:
-        # Check if the user just provided an email in this query
         import re
         email_match = re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', user_query)
         if email_match:
@@ -81,6 +96,7 @@ def answer(session_id: str, user_query: str) -> dict:
     add_message(session_id, "assistant", escalation_msg)
     logger.log_exchange(
         session_id=session_id,
+        client_id=client_id,
         query=user_query,
         response=escalation_msg,
         escalated=True,

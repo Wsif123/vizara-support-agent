@@ -3,36 +3,28 @@ from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 
-from src.config import load_client_config
-
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
 
-_collection = None
+_collections: dict[str, object] = {}
 
 
-def _get_collection(client_name: str):
-    global _collection
-    if _collection is None:
+def _get_collection(client_id: str):
+    if client_id not in _collections:
         chroma_client = chromadb.PersistentClient(
             path=str(CHROMA_DIR),
             settings=Settings(anonymized_telemetry=False),
         )
-        collection_name = client_name.replace("-", "_")
-        _collection = chroma_client.get_collection(collection_name)
-    return _collection
+        collection_name = f"client_{client_id}"
+        _collections[client_id] = chroma_client.get_collection(collection_name)
+    return _collections[client_id]
 
 
-def query(client_name: str, text: str, top_k: int = None) -> list[dict]:
-    config = load_client_config()
-    if top_k is None:
-        top_k = config["retrieval"]["top_k"]
-    score_threshold = config["retrieval"]["score_threshold"]
-
-    collection = _get_collection(client_name)
+def query(client_id: str, text: str, top_k: int = None, score_threshold: float = 0.5) -> list[dict]:
+    collection = _get_collection(client_id)
 
     results = collection.query(
         query_texts=[text],
-        n_results=top_k,
+        n_results=top_k or 6,
         include=["documents", "metadatas", "distances"],
     )
 

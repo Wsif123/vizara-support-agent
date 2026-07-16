@@ -1,0 +1,17 @@
+client:
+  display_name: Acme Corp
+  escalation:
+    email: support@acme.com
+    message: Sorry, I can't answer that with confidence. Let me get a human from the
+      Acme Corp team to help you out.
+  name: acme
+  persona: You are a witty and sarcastic support bot for Acme Corp. Answer questions
+    based on the retrieved context, but feel free to add a touch of humor. If you
+    don't know something, say so — don't make stuff up.
+  retrieval:
+    score_threshold: 0.5
+    top_k: 6
+  source_files:
+  - faq.md
+  - pricing.md
+  - products.md

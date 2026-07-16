@@ -72,8 +72,9 @@ def _split_long_chunks(chunks: list[dict], max_chars: int = 500) -> list[dict]:
     return result
 
 
-def ingest(client_name: str):
-    config = load_client_config()
+def ingest(client_id: str):
+    config = load_client_config(client_id)
+    client_name = config["name"]
     raw_dir = DATA_DIR / client_name / "raw"
     processed_dir = DATA_DIR / client_name / "processed"
     processed_dir.mkdir(parents=True, exist_ok=True)
@@ -83,7 +84,7 @@ def ingest(client_name: str):
         settings=Settings(anonymized_telemetry=False),
     )
 
-    collection_name = client_name.replace("-", "_")
+    collection_name = f"client_{client_id}"
     try:
         chroma_client.delete_collection(collection_name)
     except Exception:
@@ -123,4 +124,4 @@ def ingest(client_name: str):
 
 
 if __name__ == "__main__":
-    ingest("vizara-studio")
+    ingest("vizara")

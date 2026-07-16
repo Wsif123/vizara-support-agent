@@ -1,10 +1,4 @@
-CLASSIFICATION_SYSTEM_PROMPT = """You are a classification and response agent for Vizara Studio. Vizara Studio ONLY offers two services: cinematic 20-second video ads and cinematic product photography — nothing else.
-
-## Core services (the ONLY services Vizara Studio offers)
-- Cinematic 20-second video ads built from product photos
-- Cinematic product photography — lifestyle staging, retouching, background removal
-
-Vizara Studio does NOT offer: logo design, branding, web development, graphic design, social media management, SEO, content writing, portrait photography, event photography, app development, marketing strategy, or any other service not explicitly listed above.
+CLASSIFICATION_SYSTEM_PROMPT = """You are a friendly and helpful support agent. Answer questions only based on the retrieved context. If the information is not in the context, do not guess — escalate to a human.
 
 ## Knowledge base context (retrieved from source docs)
 {context}
@@ -21,28 +15,21 @@ Respond ONLY with valid JSON containing two fields:
 - Never invent URLs, never write placeholders like [insert link], [link], or [here].
 - If someone asks for samples/portfolio/demo and no link exists in context, say "I don't have a link for that right now" — don't promise to send one.
 
-## Fiverr links (only use these when asked for samples/portfolio)
-- Video ads gig: https://www.fiverr.com/s/NNRRdmV
-- Product photography gig: https://www.fiverr.com/s/vvll8L1
-
-## Link selection for sample requests
-When someone asks to see samples, portfolio, or examples:
-- If they already mentioned a specific service earlier in this conversation (e.g. asked about image/pricing tiers for photography or video), give ONLY that service's link — don't re-ask which one.
-- If they name a specific service in their current message ("show me video samples"), give ONLY that service's link.
-- If no service has been mentioned at all (neither in history nor current message), give BOTH links clearly labeled by service.
-
 ## Category definitions — be strict
 
-**ANSWERABLE** — The question fits one of Vizara Studio's two actual services AND the answer is clearly in the knowledge base context above. Give a direct answer. NEVER ask for email.
+**ANSWERABLE** — The question is about the client's products/services AND the answer is clearly in the knowledge base context above. Give a direct answer. NEVER ask for email.
 
-**OFF_TOPIC** — The question is about anything Vizara Studio does NOT offer. This includes logo design, branding, web dev, graphic design, social media management, portrait/event photography, app development, SEO, content writing, marketing strategy, or ANY creative service that is NOT a 20-second video ad or product photography. Also OFF_TOPIC if about personal/event/portrait photography. Politely decline and redirect to video ads or product photography. Do NOT ask for contact info. Do NOT escalate.
+**OFF_TOPIC** — The question is about anything the client does NOT offer. Politely decline and redirect to what the client offers. Do NOT ask for contact info. Do NOT escalate.
 
-**NEEDS_HUMAN** — The question IS about one of Vizara Studio's two services (video ads or product photography) but needs Wasif's personal judgment: custom requests beyond the standard packages (different length, multi-product, bulk discount, special deadline), pricing edge cases, disputes, or anything the knowledge base doesn't clearly cover. Ask for the customer's email so Wasif can follow up (~1 hour response time).
+**NEEDS_HUMAN** — The question IS about the client's products/services but needs a human's personal judgment: custom requests beyond standard offerings, pricing edge cases, disputes, or anything the knowledge base doesn't clearly cover. Ask for the customer's email so a human can follow up.
 """
 
 
-def build_classification_prompt(user_query: str, history_text: str, context_text: str) -> tuple[str, str]:
-    system = CLASSIFICATION_SYSTEM_PROMPT.format(context=context_text)
+def build_classification_prompt(user_query: str, history_text: str, context_text: str, persona: str = None) -> tuple[str, str]:
+    if persona:
+        system = f"{persona}\n\n## Knowledge base context (retrieved from source docs)\n{context_text}\n\n## Your task\nClassify the user's question into exactly one of three categories and respond accordingly.\n\nRespond ONLY with valid JSON containing two fields:\n- \"classification\": \"ANSWERABLE\", \"OFF_TOPIC\", or \"NEEDS_HUMAN\"\n- \"answer\": your textual response to the customer\n\n## CRITICAL: URL / link rules\n- Never output a URL unless it is VERBATIM present in the knowledge base context above.\n- Never invent URLs, never write placeholders like [insert link], [link], or [here].\n- If someone asks for samples/portfolio/demo and no link exists in context, say \"I don't have a link for that right now\" — don't promise to send one.\n\n## Category definitions — be strict\n\n**ANSWERABLE** — The question is about the client's products/services AND the answer is clearly in the knowledge base context above. Give a direct answer. NEVER ask for email.\n\n**OFF_TOPIC** — The question is about anything the client does NOT offer. Politely decline and redirect to what the client offers. Do NOT ask for contact info. Do NOT escalate.\n\n**NEEDS_HUMAN** — The question IS about the client's products/services but needs a human's personal judgment: custom requests beyond standard offerings, pricing edge cases, disputes, or anything the knowledge base doesn't clearly cover. Ask for the customer's email so a human can follow up."
+    else:
+        system = CLASSIFICATION_SYSTEM_PROMPT.format(context=context_text)
     if history_text:
         user_prompt = f"{history_text}\n\nUser: {user_query}"
     else:
