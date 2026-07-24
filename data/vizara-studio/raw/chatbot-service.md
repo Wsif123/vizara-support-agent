@@ -28,7 +28,7 @@ Vizara Studio also builds custom AI chatbots for business websites. Each chatbot
 4. Bot goes live, answering real customer questions grounded in the client's actual content.
 
 ## Ownership & Source Code
-Clients own their business content and brand. The chatbot itself runs on Vizara Studio's hosted platform as a service — clients do not receive the source code or a standalone copy of the bot. This is similar to subscribing to any hosted software service (like Shopify or Mailchimp) rather than a custom build-and-handover.
+Clients own their business content and brand. The chatbot itself runs on Vizara Studio's hosted platform as a service — clients do not receive the source code, source file, or a standalone copy of the bot. There are no raw files or editable source to hand over because the chatbot is a hosted service, not a delivered software package. This is similar to subscribing to any hosted software service (like Shopify or Mailchimp) rather than a custom build-and-handover.
 
 ## Maintenance
 Vizara Studio handles all technical maintenance — hosting, uptime, and security. Clients do not need to maintain anything themselves. Content updates (FAQs, pricing changes, etc.) are included within plan limits: Standard includes 1 revision round after launch, Premium includes priority handling on ongoing content updates. Additional major content overhauls beyond these limits may incur a small extra charge.
