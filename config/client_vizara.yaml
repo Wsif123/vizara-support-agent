@@ -32,5 +32,5 @@ client:
 
   # Retrieval settings
   retrieval:
-    top_k: 6
+    top_k: 10
     score_threshold: 0.5
