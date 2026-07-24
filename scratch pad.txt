@@ -1,14 +1,24 @@
-Task for Deepseek
+ask for Deepseek — re-ingest this into the vizara collection:
 
-Find the /health route in server.py.
-Add a HEAD handler alongside the existing GET one. In FastAPI this is usually just:
+Save this file into wherever vizara's content folder currently lives (same place the video ad/photography pricing docs are).
+Re-run ingestion for the vizara client_id specifically — not a full server restart needed unless ingestion only runs at build time; if it's build-time-only right now, this needs a rebuild/redeploy to pick up the new content.
+Test with a real question: "do you offer chatbots?" and "how much does the chatbot service cost?" — paste the raw response, confirm it answers correctly and doesn't confuse chatbot pricing with photography/video pricing (there are now three separate pricing structures in one collection — video ads, photography, and chatbots — worth specifically checking it doesn't cross-blend them in one answer).
+2. New site section
 
-python@app.get("/health")
-@app.head("/health")
-async def health():
-    ...
-(or however the existing route is defined — same function, just decorated for both methods)
+Agreed on keeping it separate — merging it into the existing photography/video pricing tabs would confuse two very different offerings under one switcher. Here's the spec:
 
-Confirm it doesn't need to return a body for HEAD — HTTP spec says HEAD responses shouldn't include a body anyway, FastAPI usually handles this correctly for a GET/HEAD pair automatically, but worth a quick check that the response isn't erroring on it.
-Test locally or against production with a HEAD request (curl -I or similar) and paste the raw status code — should be 200, not 405.
-Push and let Render redeploy.
+Task for Deepseek — vizara-studio frontend repo
+
+Goal: Add a new, distinct section for the AI Chatbot service — visually consistent with the site's existing dark/cinematic brand, but clearly its own section, not merged into the Video Ads/Photography pricing toggle.
+
+Steps:
+
+Add a new section (own anchor/nav entry, e.g. "AI Chatbots") positioned logically in the page flow — after the existing portfolio/pricing sections feels natural, before the contact form.
+Section content:
+Short intro/headline (e.g. "We also build AI chatbots for your website")
+Two pricing cards: Standard ($49/mo) and Premium ($79/mo), using the content from the file above — same card-hover-border style as the existing pricing cards for visual consistency
+Embed slot for the demo video (once you have it from the Google Flow script) — video player or thumbnail-click-to-play, matching the autoplay muted style used for the existing portfolio video cards
+Add a nav link/anchor for this new section so it's reachable from the top nav, not just scroll-discoverable.
+Keep it visually distinct enough that a visitor immediately understands this is a different service from the photography/video work, not another pricing tier of it.
+
+Report back: screenshot or live preview link of the new section before it goes live.

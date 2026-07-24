@@ -10,6 +10,7 @@ client:
     - pricing.md
     - process.md
     - faq.md
+    - chatbot-service.md
 
   # Agent persona — used in the system prompt
   persona: >
