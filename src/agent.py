@@ -32,7 +32,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         return {"answer": "I don't have that information — let me connect you with a human.", "escalated": True, "escalation_reason": "no_relevant_context"}
 
     context_text = "\n\n".join(
-        [f"[Source: {d['metadata'].get('source', 'unknown')}]\n{d['text']}" for d in retrieved_docs]
+        [f"[Source: {d['metadata'].get('source', 'unknown')}][Section: {d['metadata'].get('heading', '')}]\n{d['text']}" for d in retrieved_docs]
     )
 
     history = get_history(session_id)
