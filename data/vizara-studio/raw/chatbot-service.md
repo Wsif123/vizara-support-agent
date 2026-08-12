@@ -5,21 +5,13 @@ Vizara Studio also builds custom AI chatbots for business websites. Each chatbot
 
 ## Pricing
 
-### Standard — $49/month (+ $75 one-time setup)
-- Up to ~15 pages/FAQ worth of content
-- Default widget styling, brand colors only
-- Standard tone/persona
-- 1 round of content revisions after launch
-- Email escalation handoff
-- Delivery: 2–3 business days from form submission to live bot
-
-### Premium — $79/month (+ $130 one-time setup)
+### Vizara Chatbot Service — $90/month (+ $150 one-time setup)
 - Up to ~40 pages/FAQ worth of content
 - Fully brand-matched widget (colors, fonts, positioning)
 - Custom persona/tone tuning
 - Priority handling on content updates
 - Monthly usage summary (conversation volume, common questions)
-- Delivery: 3–5 business days (more content to ingest, custom widget styling, tone tuning)
+- Delivery: 3–5 business days from form submission to live bot
 
 ## How it works
 1. Client fills out a short onboarding form with their business info, FAQs, pricing, and preferred tone.
@@ -31,7 +23,7 @@ Vizara Studio also builds custom AI chatbots for business websites. Each chatbot
 Clients own their business content and brand. The chatbot itself runs on Vizara Studio's hosted platform as a service — clients do not receive the source code, source file, or a standalone copy of the bot. There are no raw files or editable source to hand over because the chatbot is a hosted service, not a delivered software package. This is similar to subscribing to any hosted software service (like Shopify or Mailchimp) rather than a custom build-and-handover.
 
 ## Maintenance
-Vizara Studio handles all technical maintenance — hosting, uptime, and security. Clients do not need to maintain anything themselves. Content updates (FAQs, pricing changes, etc.) are included within plan limits: Standard includes 1 revision round after launch, Premium includes priority handling on ongoing content updates. Additional major content overhauls beyond these limits may incur a small extra charge.
+Vizara Studio handles all technical maintenance — hosting, uptime, and security. Clients do not need to maintain anything themselves. Content updates (FAQs, pricing changes, etc.) are handled with priority once the bot is live. Additional major content overhauls beyond normal updates may incur a small extra charge.
 
 ## Billing
 Clients are billed at the start of each billing month, in advance.
@@ -58,7 +50,7 @@ The chatbot answers policy, pricing, FAQ, and product-info questions accurately 
 Special offers or custom pricing arrangements (e.g. annual upfront discounts) may be available on a case-by-case basis. These are not fixed and should always be escalated to Wasif directly rather than answered automatically.
 
 ## What happens if a client wants a fully custom, self-hosted bot instead
-The Standard/Premium tiers are a hosted subscription, not a custom handover. A fully custom, self-owned chatbot with source code delivered would be a separate, much higher-cost one-time project — clients interested in this should be escalated to speak with Wasif directly.
+The Vizara Chatbot Service is a hosted subscription, not a custom handover. A fully custom, self-owned chatbot with source code delivered would be a separate, much higher-cost one-time project — clients interested in this should be escalated to speak with Wasif directly.
 
 ## IMPORTANT — Answering instructions for this section
 Only answer ownership, maintenance, source code, billing, cancellation, refund, data retention, language, integration, and capability questions using the facts explicitly stated above. Do not infer, assume, or improvise an answer to any policy, contractual, or capability question that is not explicitly covered here — escalate to a human instead. Never claim a feature, integration, or language capability that is not explicitly listed as supported above.
