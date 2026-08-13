@@ -25,6 +25,8 @@ class GroqEmbeddingFunction(EmbeddingFunction):
             payload = {"model": EMBEDDING_MODEL, "input": texts}
             with httpx.Client(timeout=90) as client:
                 resp = client.post(GROQ_EMBEDDINGS_URL, json=payload, headers=headers)
+            if resp.status_code != 200:
+                print(f"[embeddings] Groq error {resp.status_code}: {resp.text[:500]}")
             if resp.status_code == 429:
                 continue
             resp.raise_for_status()
