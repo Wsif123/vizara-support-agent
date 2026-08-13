@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from src.agent import answer
-from src.embeddings import EMBEDDING_MODEL
+from src.embeddings import EMBEDDING_MODEL, FALLBACK_MODELS
 
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
 EMBEDDING_MODEL_FILE = CHROMA_DIR / "embedding_model.txt"
@@ -73,7 +73,7 @@ def _log_memory(label: str):
 def bootstrap():
     _log_memory("startup-before")
     db_missing = not CHROMA_DIR.exists() or not any(CHROMA_DIR.iterdir())
-    model_changed = not EMBEDDING_MODEL_FILE.exists() or EMBEDDING_MODEL_FILE.read_text(encoding="utf-8").strip() != EMBEDDING_MODEL
+    model_changed = not EMBEDDING_MODEL_FILE.exists() or EMBEDDING_MODEL_FILE.read_text(encoding="utf-8").strip() not in (EMBEDDING_MODEL, *FALLBACK_MODELS)
     if db_missing or model_changed:
         print(f"[boot] chroma_db missing or embedding model changed ({db_missing=}, {model_changed=}) — running ingestion...")
         from src.ingest import ingest

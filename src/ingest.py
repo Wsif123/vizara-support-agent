@@ -6,7 +6,7 @@ import chromadb
 from chromadb.config import Settings
 
 from src.config import load_client_config
-from src.embeddings import GroqEmbeddingFunction, EMBEDDING_MODEL
+from src.embeddings import GroqEmbeddingFunction, EMBEDDING_MODEL, current_model
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
@@ -120,7 +120,7 @@ def ingest(client_id: str):
         metadatas=metadatas,
     )
 
-    EMBEDDING_MODEL_FILE.write_text(EMBEDDING_MODEL, encoding="utf-8")
+    EMBEDDING_MODEL_FILE.write_text(current_model(), encoding="utf-8")
 
     with open(processed_dir / "chunks.json", "w", encoding="utf-8") as f:
         json.dump(all_chunks, f, indent=2, ensure_ascii=False)
