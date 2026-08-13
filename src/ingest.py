@@ -6,9 +6,11 @@ import chromadb
 from chromadb.config import Settings
 
 from src.config import load_client_config
+from src.embeddings import GroqEmbeddingFunction, EMBEDDING_MODEL
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
+EMBEDDING_MODEL_FILE = CHROMA_DIR / "embedding_model.txt"
 
 
 def _chunk_markdown(text: str, source: str) -> list[dict]:
@@ -92,6 +94,7 @@ def ingest(client_id: str):
     collection = chroma_client.create_collection(
         collection_name,
         metadata={"hnsw:space": "cosine"},
+        embedding_function=GroqEmbeddingFunction(),
     )
 
     all_chunks = []
@@ -110,12 +113,14 @@ def ingest(client_id: str):
     metadatas = [c["metadata"] for c in all_chunks]
     ids = [f"{client_name}_{i}" for i in range(len(texts))]
 
-    print(f"  Embedding {len(texts)} chunks via Chroma (ONNX)...")
+    print(f"  Embedding {len(texts)} chunks via Groq ({EMBEDDING_MODEL})...")
     collection.add(
         ids=ids,
         documents=texts,
         metadatas=metadatas,
     )
+
+    EMBEDDING_MODEL_FILE.write_text(EMBEDDING_MODEL, encoding="utf-8")
 
     with open(processed_dir / "chunks.json", "w", encoding="utf-8") as f:
         json.dump(all_chunks, f, indent=2, ensure_ascii=False)
