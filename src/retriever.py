@@ -3,8 +3,6 @@ from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 
-from src.embeddings import GroqEmbeddingFunction
-
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
 
 _collections: dict[str, object] = {}
@@ -17,10 +15,7 @@ def _get_collection(client_id: str):
             settings=Settings(anonymized_telemetry=False),
         )
         collection_name = f"client_{client_id}"
-        _collections[client_id] = chroma_client.get_collection(
-            collection_name,
-            embedding_function=GroqEmbeddingFunction(),
-        )
+        _collections[client_id] = chroma_client.get_collection(collection_name)
     return _collections[client_id]
 
 

@@ -17,10 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from src.agent import answer
-from src.embeddings import EMBEDDING_MODEL, FALLBACK_MODELS
 
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
-EMBEDDING_MODEL_FILE = CHROMA_DIR / "embedding_model.txt"
 
 # Hardcoded client ID allowlist for multi-tenancy step 1
 VALID_CLIENT_IDS = {"vizara", "test", "acme"}
@@ -72,15 +70,13 @@ def _log_memory(label: str):
 @app.on_event("startup")
 def bootstrap():
     _log_memory("startup-before")
-    db_missing = not CHROMA_DIR.exists() or not any(CHROMA_DIR.iterdir())
-    model_changed = not EMBEDDING_MODEL_FILE.exists() or EMBEDDING_MODEL_FILE.read_text(encoding="utf-8").strip() not in (EMBEDDING_MODEL, *FALLBACK_MODELS)
-    if db_missing or model_changed:
-        print(f"[boot] chroma_db missing or embedding model changed ({db_missing=}, {model_changed=}) — running ingestion...")
+    if not CHROMA_DIR.exists() or not any(CHROMA_DIR.iterdir()):
+        print("[boot] chroma_db missing or empty â€” running ingestion...")
         from src.ingest import ingest
         ingest("vizara")
         print("[boot] ingestion complete")
     else:
-        print("[boot] chroma_db found — skipping ingestion")
+        print("[boot] chroma_db found â€” skipping ingestion")
     _log_memory("startup-after")
 
 

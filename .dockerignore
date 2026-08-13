@@ -6,5 +6,6 @@ __pycache__/
 venv/
 logs/
 data/**/processed/
+chroma_db/
 .DS_Store
 Thumbs.db
