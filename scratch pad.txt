@@ -1,8 +1,0 @@
-Task for Deepseek
-
-Replace the existing chatbot-service content file with this updated version (same file, same location as before).
-Re-run ingestion for the vizara client_id.
-Re-test the exact questions that failed before — "do I get the source file," "who does maintenance," "can it integrate with WhatsApp/Instagram," "do you support other languages" — paste the raw new answers.
-Also test one new one not explicitly covered: "what if I want a fully custom bot with the source code" — should point to the escalation path, not invent terms.
-
-Once those come back correct and grounded, this section is genuinely safe to publish — right now it isn't, since a real prospective client hitting those exact questions would've been told two materially false things about the product before ever talking to you.

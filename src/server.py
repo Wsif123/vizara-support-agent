@@ -14,6 +14,7 @@ import psutil
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.agent import answer
@@ -50,6 +51,12 @@ def _check_rate_limit(client_id: str):
 
 
 app = FastAPI(title="Vizara Support Agent")
+
+# Serve the embeddable widget from the backend so onboarding a client only
+# needs one URL: {backend}/widget/chat-widget.js
+WIDGET_DIR = Path(__file__).parent.parent / "widget"
+if WIDGET_DIR.exists():
+    app.mount("/widget", StaticFiles(directory=str(WIDGET_DIR)), name="widget")
 
 # CORS kept wide â€” per-client origin validation happens at the endpoint level
 app.add_middleware(

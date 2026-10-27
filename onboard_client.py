@@ -1,3 +1,4 @@
+import re
 import sys
 import shutil
 from pathlib import Path
@@ -20,25 +21,49 @@ def _parse_args():
 
 
 def _add_to_server_py(client_id: str, domain: str):
+    """Insert the client into VALID_CLIENT_IDS and CLIENT_DOMAINS in server.py.
+
+    Uses regexes rather than literal string replacement so it keeps working no
+    matter how many clients were onboarded before.
+    """
     content = SERVER_PY.read_text(encoding="utf-8")
+    added_ids = False
+    added_domain = False
 
-    # Add to VALID_CLIENT_IDS
-    if client_id not in content:
-        content = content.replace(
-            'VALID_CLIENT_IDS = {"vizara", "test"}',
-            f'VALID_CLIENT_IDS = {{"vizara", "test", "{client_id}"}}',
-        )
+    # --- VALID_CLIENT_IDS ---
+    ids_match = re.search(r"^VALID_CLIENT_IDS = \{([^}]*)\}", content, re.MULTILINE)
+    if ids_match:
+        existing = [x.strip().strip('"').strip("'") for x in ids_match.group(1).split(",") if x.strip()]
+        if client_id not in existing:
+            existing.append(client_id)
+            new_line = "VALID_CLIENT_IDS = {" + ", ".join(f'"{c}"' for c in existing) + "}"
+            content = content[: ids_match.start()] + new_line + content[ids_match.end():]
+            added_ids = True
 
-    # Add to CLIENT_DOMAINS
-    domain_line = f'    "{client_id}": "{domain}",'
-    if domain_line not in content:
-        content = content.replace(
-            '    "test": None,',
-            f'    "test": None,\n{domain_line}',
-        )
+    # --- CLIENT_DOMAINS ---
+    domains_match = re.search(r"^CLIENT_DOMAINS = \{(.*?)^\}", content, re.MULTILINE | re.DOTALL)
+    if domains_match:
+        body = domains_match.group(1)
+        if f'"{client_id}"' not in body:
+            # append before the closing brace, preserving indentation
+            new_body = body.rstrip("\n") + f'\n    "{client_id}": "{domain}",\n'
+            content = content[: domains_match.start(1)] + new_body + content[domains_match.end(1):]
+            added_domain = True
 
     SERVER_PY.write_text(content, encoding="utf-8")
-    print(f"  [OK]   Added '{client_id}' to server.py (VALID_CLIENT_IDS + CLIENT_DOMAINS)")
+
+    if added_ids:
+        print(f"  [OK]   Added '{client_id}' to VALID_CLIENT_IDS")
+    else:
+        print(f"  [SKIP] '{client_id}' already in VALID_CLIENT_IDS")
+
+    if added_domain:
+        print(f"  [OK]   Added '{client_id}' -> '{domain}' to CLIENT_DOMAINS")
+    else:
+        print(f"  [SKIP] '{client_id}' already in CLIENT_DOMAINS")
+
+    if not added_ids or not added_domain:
+        print("  [WARN] server.py was already partially updated - verify by hand before deploying")
 
 
 def _create_client_config(client_id: str, display_name: str, content_folder: Path, persona: str = None):
@@ -92,9 +117,9 @@ def _copy_content(client_id: str, content_folder: Path):
 
 
 def _generate_widget_snippet(client_id: str, backend_url: str, domain: str):
-    snippet = f'''<!-- Vizara Support Widget for {client_id} -->
+    snippet = f'''<!-- Vizara Support Widget for {client_id} (allowed domain: {domain}) -->
 <script
-  src="{backend_url.rstrip('/')}/static/widget/chat-widget.js"
+  src="{backend_url.rstrip('/')}/widget/chat-widget.js"
   data-api-url="{backend_url.rstrip('/')}/chat"
   data-client-id="{client_id}"
 ></script>'''

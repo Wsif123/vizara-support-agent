@@ -23,3 +23,14 @@ Thumbs.db
 test_content/
 _*.log
 _*.txt
+
+# Secrets that must never be committed
+client_secret_*.json
+*.credentials.json
+
+# Personal notes (contains keys/paste buffer)
+scratch pad.txt
+
+# Editor
+.vscode/
+.idea/

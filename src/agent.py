@@ -14,7 +14,12 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
 
     add_message(session_id, "user", user_query)
 
-    retrieved_docs = retrieve(client_id, user_query, top_k=config.get("retrieval", {}).get("top_k", 6))
+    retrieved_docs = retrieve(
+        client_id,
+        user_query,
+        top_k=config.get("retrieval", {}).get("top_k", 6),
+        score_threshold=config.get("retrieval", {}).get("score_threshold", 0.5),
+    )
 
     # If no relevant context found, skip LLM and escalate directly
     relevant_docs = [d for d in retrieved_docs if d.get("passed")]
