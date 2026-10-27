@@ -4,13 +4,22 @@ import itertools
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
-GROQ_MODEL = "llama-3.1-8b-instant"
-CEREBRAS_MODEL = "gemma-4-31b"
 
 
 def _load_env():
     from dotenv import load_dotenv
     load_dotenv()
+
+
+# Load .env before resolving model IDs so local overrides work. load_dotenv()
+# does not overwrite already-set process env vars, so Render config wins.
+_load_env()
+
+# Model IDs are overridable via env so a provider deprecation does not require
+# a code change + redeploy. Defaults are the models verified live in Oct 2026.
+# Groq deprecated llama-3.1-8b-instant and Cerebras archived gemma-4-31b.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+CEREBRAS_MODEL = os.getenv("CEREBRAS_MODEL", "gpt-oss-120b")
 
 
 def _get_groq_keys() -> list[str]:

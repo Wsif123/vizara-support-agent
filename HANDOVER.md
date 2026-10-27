@@ -26,6 +26,17 @@ Live:
 
 Hosting: **Render** (backend, Docker) and **Netlify** (frontend, static). Both auto-deploy on push to the branch listed above.
 
+### Status at handover (Oct 2026)
+
+This is a working prototype with one real customer (Vizara Studio). It is not a finished product — treat it as a codebase to take over, not a running service you must keep alive.
+
+- Backend deploys cleanly on Render; `/health` supports GET + HEAD; widget is served at `/widget/chat-widget.js`.
+- Retrieval works and is isolated per client.
+- The LLM layer was on dead model IDs during handover. Defaults were updated to Groq `openai/gpt-oss-20b` and Cerebras `gpt-oss-120b` and are env-overridable; an isolated Groq call returned a correct, grounded pricing answer. See §9.2 — **if the deployed service still escalates every message, check the models/keys first.**
+- The provided Cerebras key is out of free quota (HTTP 402), so the Cerebras fallback only works once billing is enabled.
+- Escalation email requires `NOTIFY_FORMSPREE_URL` to be set; the previous hardcoded form ID was removed before handover.
+- Nothing in this repo requires you to keep the existing Groq/Cerebras accounts. You can swap in your own keys and models.
+
 ---
 
 ## 2. Architecture
@@ -50,12 +61,13 @@ src/agent.py
    5. retrieve top-k chunks from Chroma collection "client_{id}"
       - no chunk >= score_threshold -> escalate "no_relevant_context"
    6. build prompt: persona + retrieved context + last 10 messages
-   7. LLM: Groq llama-3.1-8b-instant (key pool, round-robin)
-           -> all keys fail -> Cerebras gemma-4-31b fallback
+   7. LLM: Groq (key pool, round-robin), model GROQ_MODEL (default openai/gpt-oss-20b)
+           -> all keys fail -> Cerebras CEREBRAS_MODEL (default gpt-oss-120b) fallback
+           -> both fail -> canned NEEDS_HUMAN escalation (see §9)
    8. model classifies answer as
         ANSWERABLE   -> reply
         OFF_TOPIC    -> polite decline / redirect
-        NEEDS_HUMAN  -> ask for email, send escalation via Formspree
+        NEEDS_HUMAN  -> ask for email, send escalation via Formspree (if configured)
    9. log exchange to logs/conversations.db (SQLite)
    ▼
 JSON {answer, escalated, escalation_reason}
@@ -164,7 +176,7 @@ client:
     score_threshold: 0.5     # honored (similarity floor; below this = escalate)
 ```
 
-> The `escalation.email` field is currently **not used** by `notifier.py`. Escalation mail goes to the `NOTIFY_EMAIL_TO` env var through the Formspree form.
+> The `escalation.email` field is currently **not used** by `notifier.py`. Escalation mail goes to the `NOTIFY_EMAIL_TO` env var through the Formspree endpoint configured in `NOTIFY_FORMSPREE_URL`.
 
 ---
 
@@ -177,6 +189,9 @@ Set these in Render (Settings → Environment) and in `.env` locally. `.env` is 
 | `GROQ_API_KEYS` | yes* | Comma-separated Groq keys. Rotated round-robin; 429/401 retries next key |
 | `SUPPORT_AGENT_GROQ_API_KEY` | fallback* | Legacy single-key variable; used if `GROQ_API_KEYS` is unset |
 | `CEREBRAS_API_KEY` | recommended | Fallback provider when every Groq key fails |
+| `GROQ_MODEL` | optional | Groq model ID. Default `openai/gpt-oss-20b` |
+| `CEREBRAS_MODEL` | optional | Cerebras model ID. Default `gpt-oss-120b` |
+| `NOTIFY_FORMSPREE_URL` | optional | Formspree endpoint, e.g. `https://formspree.io/f/<id>`. Empty = no escalation email |
 | `NOTIFY_EMAIL_TO` | yes | Address included in escalation emails |
 | `PORT` | set by Render | Server port (defaults 8000) |
 | `NOTIFY_SMTP_USER` | legacy | **Unused** — the notifier sends via Formspree, not SMTP |
@@ -184,7 +199,7 @@ Set these in Render (Settings → Environment) and in `.env` locally. `.env` is 
 
 \* One of the two Groq variables must exist or the LLM layer raises at import time.
 
-Models: `llama-3.1-8b-instant` on Groq, `gemma-4-31b` on Cerebras (fallback).
+Models (Oct 2026): Groq `openai/gpt-oss-20b`, Cerebras `gpt-oss-120b` fallback. Both are overridable by env without a code change — important, because providers retire model IDs regularly (the previous defaults, Groq `llama-3.1-8b-instant` and Cerebras `gemma-4-31b`, were both retired and caused every request to fall through to the canned escalation).
 
 ---
 
@@ -256,12 +271,12 @@ Frontend local dev: the `<script>` tag in `vizara-studio/index.html` points at t
 ## 9. Known issues / limitations
 
 1. **New clients require a restart/redeploy** — the allowlist is a module-level constant.
-2. **Pricing questions sometimes over-escalate.** `what are your video ad prices?` currently returns `NEEDS_HUMAN` on both local and production (Groq `llama-3.1-8b-instant`, temp 0). Retrieval passes 6 relevant docs, so this is prompt-tuning, not retrieval. Suggested fix: tighten the `NEEDS_HUMAN` definition in `src/guardrails.py` (it currently mentions "pricing edge cases", which the model over-applies) or switch to a stronger model.
+2. **LLM availability is the main failure mode.** Model IDs get retired by providers without notice. When every Groq key and the Cerebras fallback fail, `generate()` returns an error string, `parse_classification_response()` falls back to `NEEDS_HUMAN`, and the customer sees the generic "share your email" message. This is exactly what happened during handover: Groq had retired `llama-3.1-8b-instant` (404) and Cerebras had archived `gemma-4-31b` (404). The defaults are now `openai/gpt-oss-20b` / `gpt-oss-120b`, verified working in an isolated call (correct grounded pricing answer). **The currently supplied Cerebras key is out of free quota (HTTP 402), so Cerebras is not a usable fallback until billing is enabled.** Check `https://api.groq.com/openai/v1/models` and `https://api.cerebras.ai/v1/models` if answers start escalating, then set `GROQ_MODEL` / `CEREBRAS_MODEL` in Render — no code change needed.
 3. **Ephemeral storage on Render** — `logs/conversations.db` and `chroma_db/` are lost on redeploy (Chroma is rebuilt at image build; logs are not).
 4. **Single worker only** — see §2.
 5. **In-memory sessions** — history is lost on restart; no cross-instance sharing.
 6. **No admin dashboard** — onboarding is a CLI script; conversation logs are raw SQLite.
-7. **Escalation email depends on Formspree** (`https://formspree.io/f/xykonbob` in `src/notifier.py`). If that form is deleted, escalation emails silently fail (logged only).
+7. **Escalation email needs `NOTIFY_FORMSPREE_URL`.** The form ID is no longer hardcoded in `src/notifier.py`. If the variable is unset (or the Formspree form is deleted), escalation emails silently fail and are only logged.
 8. **Origin check allows missing Origin** by design; a non-browser attacker can omit it. Rate limiting and the client_id allowlist are the practical controls.
 9. **Rate limit is per process**, so it resets on restart.
 
@@ -276,11 +291,11 @@ Frontend local dev: the `<script>` tag in `vizara-studio/index.html` points at t
 | `429` | Per-client 10 req/min limit hit → wait or raise `RATE_LIMIT` |
 | `500` on chat | Check Render logs. Missing collection is handled; other exceptions are not |
 | "I don't have that information — let me connect you with a human." | No chunk above `score_threshold` → improve content or lower threshold |
-| All answers escalate | LLM keys invalid/exhausted, or persona/prompt issue — check `[llm]` logs |
+| All answers escalate / generic "share your email" reply | LLM keys invalid or model IDs retired — check `[llm]` logs; verify models at the provider `/v1/models` endpoint and override `GROQ_MODEL` / `CEREBRAS_MODEL` |
 | `ModuleNotFoundError: chromadb` | Wrong interpreter — use Python 3.11 |
 | Build fails on `chroma-hnswlib` | Must build on Python 3.11 (cp311 wheel) |
 | Render crashes with exec-stack / SIGILL | Keep `patchelf --clear-execstack` + `onnxruntime==1.16.3` pin |
-| Escalation email not received | Check `NOTIFY_EMAIL_TO`, Formspree form status, Render logs |
+| Escalation email not received | Check `NOTIFY_FORMSPREE_URL` is set, `NOTIFY_EMAIL_TO`, the Formspree form status, and Render logs |
 
 Useful log lines: `[llm] attempt N: Groq key X`, `[llm] all Groq keys exhausted`, `[mem] RSS=...`, `[notifier] ...`.
 
@@ -297,9 +312,11 @@ The frontend markets the chatbot service at **$90/mo + $150 one-time setup** (ca
 - [ ] Transfer GitHub repos `Wsif123/vizara-support-agent` and `Wsif123/vizarastudio`
 - [ ] Transfer / re-link Render service and Netlify site
 - [ ] Transfer domain / DNS (if custom domains are added later)
-- [ ] Deliver `.env` secrets via password manager
-- [ ] Rotate all API keys and the Formspree form after transfer
+- [ ] Deliver `.env` values out-of-band (password manager) — never through git
+- [ ] Rotate all API keys and create your own Formspree form after transfer
+- [ ] Set `NOTIFY_FORMSPREE_URL` + `NOTIFY_EMAIL_TO` in Render
+- [ ] Confirm `GROQ_MODEL` / `CEREBRAS_MODEL` are live at the provider (see §9.2)
 - [ ] Verify `/health` returns 200 (GET + HEAD)
-- [ ] Verify a live chat message on https://vizarastudioo.netlify.app returns an answer
+- [ ] Verify a live chat message on https://vizarastudioo.netlify.app returns a grounded answer (not the generic escalation)
 - [ ] Verify escalation email arrives
 - [ ] Run `python onboard_client.py` once in a scratch branch to confirm onboarding works, then revert

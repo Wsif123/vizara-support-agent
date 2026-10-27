@@ -8,7 +8,7 @@ Multi-tenant RAG support chatbot sold as a service. Each client gets an isolated
 
 ## Stack
 
-- **LLM:** Groq `llama-3.1-8b-instant` (key pool, round-robin) with Cerebras `gemma-4-31b` fallback
+- **LLM:** Groq `openai/gpt-oss-20b` (key pool, round-robin) with Cerebras `gpt-oss-120b` fallback — both model IDs are env-overridable (`GROQ_MODEL`, `CEREBRAS_MODEL`)
 - **Embeddings:** Chroma built-in (ONNX all-MiniLM-L6-v2)
 - **Vector store:** Chroma 0.5.3 (persistent, per-client collections)
 - **Server:** FastAPI + uvicorn (single worker)
@@ -19,7 +19,7 @@ Multi-tenant RAG support chatbot sold as a service. Each client gets an isolated
 
 ```bash
 py -3.11 -m pip install -r requirements.txt
-cp .env.example .env          # fill in GROQ_API_KEYS / CEREBRAS_API_KEY / NOTIFY_EMAIL_TO
+cp .env.example .env          # fill in GROQ_API_KEYS, optional CEREBRAS_API_KEY, NOTIFY_EMAIL_TO, NOTIFY_FORMSPREE_URL
 py -3.11 -c "import sys; sys.path.insert(0,'.'); from src.ingest import ingest; ingest('vizara')"
 py -3.11 src/server.py        # http://localhost:8000
 ```

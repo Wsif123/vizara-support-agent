@@ -5,12 +5,16 @@ import urllib.error
 from datetime import datetime, timezone
 
 
-FORMSPREE_URL = "https://formspree.io/f/xykonbob"
-
-
 def send_escalation_email(session_id: str, question: str, customer_email: str) -> bool:
     from dotenv import load_dotenv
     load_dotenv()
+
+    # The Formspree form ID is per-operator, so it is configured via env rather
+    # than committed. If it is unset, escalation is logged but no mail is sent.
+    formspree_url = os.getenv("NOTIFY_FORMSPREE_URL", "").strip()
+    if not formspree_url:
+        print(f"[notifier] NOTIFY_FORMSPREE_URL not set — escalation not emailed (session {session_id})")
+        return False
 
     notify_to = os.getenv("NOTIFY_EMAIL_TO", "")
 
@@ -27,7 +31,7 @@ def send_escalation_email(session_id: str, question: str, customer_email: str) -
     }).encode()
 
     try:
-        req = urllib.request.Request(FORMSPREE_URL, data=data, method="POST")
+        req = urllib.request.Request(formspree_url, data=data, method="POST")
         req.add_header("User-Agent", "Vizara-Support-Agent/1.0")
         req.add_header("Accept", "application/json, text/plain, */*")
         with urllib.request.urlopen(req, timeout=15) as resp:
