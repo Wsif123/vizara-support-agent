@@ -104,7 +104,15 @@ src/
   logger.py               # SQLite conversation logging
   notifier.py             # Formspree escalation email
   config.py               # YAML config loader (client_{id}.yaml)
-  embeddings.py           # DELETED (dead code; Chroma's built-in embeddings are used)
+eval/
+  eval_set.yaml           # regression questions: expected keywords + must_escalate flags
+scripts/
+  run_eval.py             # runs eval_set.yaml through src.agent.answer and scores it
+  debug_retrieval.py      # prints retrieved chunks/scores for a query
+  test_queries.py         # ad-hoc retrieval probes
+  test_samples.py         # ad-hoc sample/URL probes
+  test_three.py           # ad-hoc probes
+  test_two.py             # ad-hoc probes
 widget/
   chat-widget.js          # canonical widget served at /widget/chat-widget.js
   test.html               # local widget harness
@@ -233,6 +241,16 @@ Invoke-WebRequest http://localhost:8000/chat -Method Post `
 Widget harness: open `widget/test.html` (point its script tag at `http://localhost:8000`).
 
 Frontend local dev: the `<script>` tag in `vizara-studio/index.html` points at the **production** backend, so a local page will hit Render. Change `data-api-url` to `http://localhost:8000/chat` while developing.
+
+### Regression eval
+
+`eval/eval_set.yaml` holds question / expected-keyword / must-escalate cases. Run them through the real agent (needs keys + a built index):
+
+```powershell
+py -3.11 scripts/run_eval.py
+```
+
+`scripts/debug_retrieval.py` prints the chunks and scores behind a query, which is the fastest way to tell whether a bad answer is a retrieval or an LLM problem. The other `scripts/test_*.py` files are ad-hoc probes, not a test suite.
 
 ---
 
