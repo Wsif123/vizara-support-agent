@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chip %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Clients</h1><p>Accounts, plans, usage, and billing status.</p></div>
+  <div class="actions">
+    <a class="btn" href="/export/clients.csv"><svg class="icon"><use href="#i-download"/></svg>Export CSV</a>
+    <a class="btn primary" href="/clients/new"><svg class="icon"><use href="#i-plus"/></svg>New client</a>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="search-field">
+    <svg class="icon"><use href="#i-search"/></svg>
+    <input class="input" placeholder="Search clients…" data-filter-table="clientsTable" autocomplete="off">
+  </div>
+  <div class="right"><span class="faint" style="font-size:10.5px">{{ active_clients }} active · {{ total_clients }} total</span></div>
+</div>
+
+<div class="panel">
+  <div class="panel-body tight">
+    <div class="table-wrap">
+      <table class="table" id="clientsTable">
+        <thead><tr><th>Client</th><th>Domain</th><th>Status</th><th>Plan</th><th>Billing</th><th class="num">Messages 7d</th><th>Last active</th><th></th></tr></thead>
+        <tbody>
+          {% for client in clients %}
+          <tr>
+            <td><div class="client-cell"><div class="avatar">{{ client.display_name|initials }}</div><div><strong>{{ client.display_name }}</strong><span>client_{{ client.id }}</span></div></div></td>
+            <td class="mono">{{ client.domain or '—' }}</td>
+            <td>{{ chip(client.status) }}</td>
+            <td class="muted">{{ client.plan_name or 'No plan' }}</td>
+            <td>{% if client.sub_status %}{{ chip(client.sub_status) }}{% else %}<span class="chip gray">—</span>{% endif %}</td>
+            <td class="num">{{ client.usage.get('messages', 0) }}</td>
+            <td class="muted">{{ client.usage.get('last_active')|date if client.usage.get('last_active') else '—' }}</td>
+            <td><div class="row-actions"><a title="Open" href="/clients/{{ client.id }}"><svg class="icon"><use href="#i-arrow"/></svg></a></div></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8"><div class="empty"><strong>No clients yet</strong>Create the first client from a few markdown files.<br><br><a class="btn primary" href="/clients/new">New client</a></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="banner blue" style="margin-top:14px">
+  <svg class="icon"><use href="#i-info"/></svg>
+  <span><strong>Onboarding is real.</strong> The console writes <span class="mono">config/client_&lt;id&gt;.yaml</span>, saves content under <span class="mono">data/&lt;id&gt;/raw</span>, builds the index, and registers the client — no <span class="mono">server.py</span> edits. Pausing a client writes <span class="mono">enabled: false</span>; the public bot reads the registry within 2 seconds.</span>
+</div>
+{% endblock %}

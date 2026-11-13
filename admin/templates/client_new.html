@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}
+<div class="page-head">
+  <div><h1>New client</h1><p>Config, content, index, and console record — created together.</p></div>
+  <div class="actions"><a class="btn" href="/clients">Cancel</a></div>
+</div>
+
+<div class="grid cols-2">
+  <div class="panel">
+    <div class="panel-head"><h2>Client details</h2><span class="sub">all fields except persona are required unless marked</span></div>
+    <div class="panel-body">
+      <form method="post" action="/clients/new" enctype="multipart/form-data">
+        {{ csrf(csrf_token) }}
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="client_id">Client ID</label>
+            <input class="input" id="client_id" name="client_id" required pattern="[a-z0-9][a-z0-9_-]{0,63}" placeholder="acme" autocomplete="off">
+            <div class="hint">Lowercase slug. Matches <span class="mono">config/client_&lt;id&gt;.yaml</span>.</div>
+          </div>
+          <div class="form-field">
+            <label for="display_name">Display name</label>
+            <input class="input" id="display_name" name="display_name" required maxlength="120" placeholder="Acme Corp">
+          </div>
+          <div class="form-field">
+            <label for="domain">Allowed domain</label>
+            <input class="input" id="domain" name="domain" placeholder="acme.com" autocomplete="off">
+            <div class="hint">Origin check for the widget. Leave empty in local dev.</div>
+          </div>
+          <div class="form-field">
+            <label for="contact_name">Escalation contact</label>
+            <input class="input" id="contact_name" name="contact_name" maxlength="120" placeholder="Acme Support">
+          </div>
+          <div class="form-field">
+            <label for="contact_email">Contact email</label>
+            <input class="input" id="contact_email" name="contact_email" type="email" maxlength="254" placeholder="support@acme.com">
+            <div class="hint">Used for escalation notifications (Formspree must be configured).</div>
+          </div>
+          <div class="form-field">
+            <label for="plan_id">Start subscription</label>
+            <select class="input" id="plan_id" name="plan_id">
+              <option value="">No subscription yet</option>
+              {% for plan in plans %}
+              <option value="{{ plan.id }}">{{ plan.name }} · {{ plan.amount_cents|money }}/{{ plan.interval }} + {{ plan.setup_fee_cents|money }} setup</option>
+              {% endfor %}
+            </select>
+            <div class="hint">Optional. Billing stays a ledger until a provider is connected.</div>
+          </div>
+          <div class="form-field">
+            <label for="top_k">Retrieval top K</label>
+            <input class="input" id="top_k" name="top_k" type="number" min="1" max="20" value="6">
+            <div class="hint">Lower is cheaper on Groq tokens. 6 is a good starting point.</div>
+          </div>
+          <div class="form-field">
+            <label for="score_threshold">Score threshold</label>
+            <input class="input" id="score_threshold" name="score_threshold" type="number" step="0.01" min="0" max="1" value="0.55">
+          </div>
+          <div class="form-field full">
+            <label for="persona">Persona <span class="faint">(optional)</span></label>
+            <textarea class="input" id="persona" name="persona" rows="4" maxlength="4000" placeholder="You are a friendly and helpful support agent for Acme Corp. Answer only from retrieved context…"></textarea>
+            <div class="hint">Leave blank for a safe default. The shared guardrails (no invented URLs, no cross-service pricing) always apply.</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <h3 class="section-title">Knowledge</h3>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="files">Markdown files</label>
+            <input class="input" id="files" name="files" type="file" accept=".md,.markdown,.txt" multiple>
+            <div class="hint">Max 2 MB each, 10 MB total. Files land in <span class="mono">data/&lt;id&gt;/raw/</span>.</div>
+          </div>
+          <div class="form-field">
+            <label for="knowledge">Paste content <span class="faint">(optional)</span></label>
+            <textarea class="input" id="knowledge" name="knowledge" rows="7" maxlength="500000" placeholder="# Pricing&#10;&#10;## Starter&#10;$90/month…"></textarea>
+            <div class="hint">Saved as <span class="mono">knowledge.md</span> and indexed with the uploads.</div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn" href="/clients">Cancel</a>
+          <button class="btn primary" type="submit"><svg class="icon"><use href="#i-plus"/></svg>Create &amp; index</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <div class="panel-head"><h2>What happens on save</h2><span class="sub">no code edits</span></div>
+      <div class="panel-body">
+        <div class="sys-row"><span class="dot blue"></span> 1. Write the YAML config</div>
+        <div class="sys-row"><span class="dot blue"></span> 2. Save and chunk source files</div>
+        <div class="sys-row"><span class="dot blue"></span> 3. Embed into Chroma</div>
+        <div class="sys-row"><span class="dot blue"></span> 4. Register the tenant + audit entry</div>
+        <div class="sys-row"><span class="dot green"></span> 5. Widget becomes valid without a restart</div>
+        <div class="divider"></div>
+        <p class="hint" style="margin:0">The public bot validates <span class="mono">client_id</span> and Origin from the config directory. If you pause a client, it is rejected immediately.</p>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head"><h2>Widget snippet</h2><span class="sub">after creation</span></div>
+      <div class="panel-body">
+        <div class="code">&lt;script
+  src="https://your-backend.example.com/widget/chat-widget.js"
+  data-api-url="https://your-backend.example.com/chat"
+  data-client-id="CLIENT_ID"
+  data-brand-name="DISPLAY_NAME"
+&gt;&lt;/script&gt;</div>
+        <div class="note" style="margin-top:10px"><svg class="icon"><use href="#i-shield"/></svg><span>The client detail page gives you the exact snippet once the client exists. Content remains local until you deploy the bot.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

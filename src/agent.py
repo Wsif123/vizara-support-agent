@@ -1,18 +1,60 @@
+import re
+
 from src.config import load_client_config
 from src.retriever import query as retrieve
 from src.llm_client import generate as call_llm
 from src.guardrails import build_classification_prompt, parse_classification_response
-from src.memory import add_message, get_history, get_email, set_email
+from src.memory import (
+    add_message,
+    get_history,
+    get_email,
+    set_email,
+    set_pending,
+    get_pending,
+    clear_pending,
+)
 from src import logger
 from src.notifier import send_escalation_email
 
-OFF_TOPIC_REDIRECT = "That's not something Vizara Studio offers — we specialize in cinematic video ads and product photography for products. Do you have any other questions about our video ads or product photography?"
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+
+
+def _contact_name(config: dict) -> str:
+    return (
+        config.get("escalation", {}).get("contact_name")
+        or config.get("display_name")
+        or "the team"
+    )
+
+
+def _log(session_id, client_id, query, response, escalated, reason, context):
+    logger.log_exchange(
+        session_id=session_id,
+        client_id=client_id,
+        query=query,
+        response=response,
+        escalated=escalated,
+        escalation_reason=reason,
+        context=context,
+    )
 
 
 def answer(session_id: str, user_query: str, client_id: str) -> dict:
     config = load_client_config(client_id)
+    contact = _contact_name(config)
 
     add_message(session_id, "user", user_query)
+
+    # Capture an email whenever it appears — not only in the message that the
+    # model happens to classify as NEEDS_HUMAN. Previously a customer could
+    # reply with just their address, get an OFF_TOPIC/ANSWERABLE
+    # classification, and the escalation would never fire.
+    email = get_email(session_id)
+    if not email:
+        match = _EMAIL_RE.search(user_query)
+        if match:
+            email = match.group().rstrip(".,;:!?)]}'\"")
+            set_email(session_id, email)
 
     retrieved_docs = retrieve(
         client_id,
@@ -21,23 +63,34 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         score_threshold=config.get("retrieval", {}).get("score_threshold", 0.5),
     )
 
-    # If no relevant context found, skip LLM and escalate directly
+    # Only chunks that clear the threshold belong in the prompt. The old code
+    # used every retrieved chunk here, so score_threshold could never filter
+    # anything out.
     relevant_docs = [d for d in retrieved_docs if d.get("passed")]
     if not relevant_docs:
-        add_message(session_id, "assistant", "I don't have that information — let me connect you with a human.")
-        logger.log_exchange(
-            session_id=session_id,
-            client_id=client_id,
-            query=user_query,
-            response="I don't have that information — let me connect you with a human.",
-            escalated=True,
-            escalation_reason="no_relevant_context",
-            context=retrieved_docs,
-        )
-        return {"answer": "I don't have that information — let me connect you with a human.", "escalated": True, "escalation_reason": "no_relevant_context"}
+        # The old reply promised a human but never captured contact details or
+        # sent anything. Treat it like NEEDS_HUMAN so the escalation actually
+        # reaches the operator.
+        if email:
+            escalation_msg = (
+                f"Thanks — {contact} has been notified and will personally follow up at {email} "
+                f"within ~1 hour. You'll hear from {contact} soon!"
+            )
+            send_escalation_email(session_id, user_query, email)
+            clear_pending(session_id)
+        else:
+            set_pending(session_id, user_query)
+            escalation_msg = (
+                f"I don't have that information. Let me connect you with {contact} — "
+                f"could you share your email address so {contact} can follow up with you personally?"
+            )
+
+        add_message(session_id, "assistant", escalation_msg)
+        _log(session_id, client_id, user_query, escalation_msg, True, "no_relevant_context", retrieved_docs)
+        return {"answer": escalation_msg, "escalated": True, "escalation_reason": "no_relevant_context"}
 
     context_text = "\n\n".join(
-        [f"[Source: {d['metadata'].get('source', 'unknown')}][Section: {d['metadata'].get('heading', '')}]\n{d['text']}" for d in retrieved_docs]
+        [f"[Source: {d['metadata'].get('source', 'unknown')}]\n{d['text']}" for d in relevant_docs]
     )
 
     history = get_history(session_id)
@@ -46,66 +99,55 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         history_lines = [f"{msg['role'].capitalize()}: {msg['content']}" for msg in history[:-1]]
         history_text = "\n".join(history_lines)
 
-    system_prompt, user_prompt = build_classification_prompt(user_query, history_text, context_text, persona=config.get("persona"))
+    system_prompt, user_prompt = build_classification_prompt(
+        user_query, history_text, context_text, persona=config.get("persona")
+    )
     raw_response = call_llm(system_prompt, user_prompt, temperature=0.0)
 
     result = parse_classification_response(raw_response)
     classification = result.get("classification", "NEEDS_HUMAN")
     answer_text = result.get("answer", raw_response)
 
+    pending_question = get_pending(session_id)
+
+    # If we were waiting for an email and the customer supplied one, escalate
+    # now even if this follow-up message itself looks answerable/off-topic.
+    if email and pending_question:
+        escalation_msg = (
+            f"Thanks — {contact} has been notified and will personally follow up at {email} "
+            f"within ~1 hour. You'll hear from {contact} soon!"
+        )
+        send_escalation_email(session_id, pending_question, email)
+        clear_pending(session_id)
+        add_message(session_id, "assistant", escalation_msg)
+        _log(session_id, client_id, user_query, escalation_msg, True, "needs_human", relevant_docs)
+        return {"answer": escalation_msg, "escalated": True, "escalation_reason": "needs_human"}
+
     if classification == "ANSWERABLE":
         add_message(session_id, "assistant", answer_text)
-        logger.log_exchange(
-            session_id=session_id,
-            client_id=client_id,
-            query=user_query,
-            response=answer_text,
-            escalated=False,
-            context=retrieved_docs,
-        )
+        _log(session_id, client_id, user_query, answer_text, False, None, relevant_docs)
         return {"answer": answer_text, "escalated": False}
 
     if classification == "OFF_TOPIC":
         add_message(session_id, "assistant", answer_text)
-        logger.log_exchange(
-            session_id=session_id,
-            client_id=client_id,
-            query=user_query,
-            response=answer_text,
-            escalated=False,
-            context=retrieved_docs,
-        )
+        _log(session_id, client_id, user_query, answer_text, False, None, relevant_docs)
         return {"answer": answer_text, "escalated": False}
 
     # NEEDS_HUMAN
-    email = get_email(session_id)
-    if not email:
-        import re
-        email_match = re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', user_query)
-        if email_match:
-            email = email_match.group()
-            set_email(session_id, email)
-
     if email:
         escalation_msg = (
-            f"Thanks — Wasif has been notified and will personally follow up at {email} "
-            f"within ~1 hour. You'll hear from him soon!"
+            f"Thanks — {contact} has been notified and will personally follow up at {email} "
+            f"within ~1 hour. You'll hear from {contact} soon!"
         )
         send_escalation_email(session_id, user_query, email)
+        clear_pending(session_id)
     else:
+        set_pending(session_id, user_query)
         escalation_msg = (
-            "I'll need to loop in Wasif on this one. Could you share your email address "
-            "so he can follow up with you personally? He typically responds within ~1 hour."
+            f"I'll need to loop in {contact} on this one. Could you share your email address "
+            f"so {contact} can follow up with you personally? {contact} typically responds within ~1 hour."
         )
 
     add_message(session_id, "assistant", escalation_msg)
-    logger.log_exchange(
-        session_id=session_id,
-        client_id=client_id,
-        query=user_query,
-        response=escalation_msg,
-        escalated=True,
-        escalation_reason="needs_human",
-        context=retrieved_docs,
-    )
+    _log(session_id, client_id, user_query, escalation_msg, True, "needs_human", relevant_docs)
     return {"answer": escalation_msg, "escalated": True, "escalation_reason": "needs_human"}

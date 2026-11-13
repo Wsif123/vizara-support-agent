@@ -1,11 +1,17 @@
-﻿client:
+# Test Client — client configuration
+# Managed by the Vizara operator console.
+
+client:
   name: test
   display_name: Test Client
+  domain: null
+  enabled: false
   source_files: []
-  persona: "You are a test support agent."
+  persona: You are a test support agent.
   escalation:
     email: test@example.com
-    message: "Test escalation."
+    contact_name: Test Support
+    message: Test escalation.
   retrieval:
     top_k: 6
     score_threshold: 0.5

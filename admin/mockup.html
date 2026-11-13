@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vizara Console — Design Preview</title>
+<style>
+  :root{
+    --bg:#0a0a0b; --sidebar:#0c0d0f; --panel:#101113; --panel-2:#141619;
+    --border:#22252a; --border-soft:#1a1d21; --text:#e8e8e8; --muted:#8b9098;
+    --faint:#5d636b; --accent:#f2a33c; --accent-soft:rgba(242,163,60,.12);
+    --green:#4ade80; --red:#f87171; --blue:#60a5fa; --yellow:#fbbf24;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
+  ::selection{background:rgba(242,163,60,.28)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#24272c;border-radius:99px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:224px;flex:0 0 224px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:10px;padding:18px 16px 20px}
+  .brand-mark{width:28px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#1a1206;flex:0 0 auto}
+  .brand-mark svg{width:16px;height:16px}
+  .brand-name{font-size:14px;font-weight:650;letter-spacing:-.01em}
+  .brand-sub{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);display:block;margin-top:1px}
+  .nav{padding:0 10px;flex:1;overflow:auto}
+  .nav-label{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:16px 10px 7px;font-weight:600}
+  .nav-item{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:7px;color:var(--muted);font-size:12.5px;position:relative;user-select:none}
+  .nav-item svg{width:16px;height:16px;flex:0 0 auto;opacity:.9}
+  .nav-item:hover{background:var(--panel-2);color:var(--text)}
+  .nav-item.active{background:#17181b;color:var(--text);box-shadow:inset 2px 0 0 var(--accent)}
+  .nav-item.active svg{color:var(--accent);opacity:1}
+  .nav-item .kbd{margin-left:auto;opacity:0;transition:opacity .12s}
+  .nav-item:hover .kbd{opacity:1}
+  .kbd{font:10px/1 var(--mono);color:var(--faint);border:1px solid var(--border);border-radius:4px;padding:3px 5px;background:#0b0c0e}
+  .sidebar-foot{padding:12px;border-top:1px solid var(--border)}
+  .operator{display:flex;align-items:center;gap:9px;padding:6px 4px 10px}
+  .avatar{width:26px;height:26px;border-radius:50%;background:#1d2024;border:1px solid var(--border);display:grid;place-items:center;font-size:10px;font-weight:650;color:var(--muted);flex:0 0 auto}
+  .operator strong{display:block;font-size:11.5px;font-weight:600}
+  .operator span{display:block;font-size:10px;color:var(--faint)}
+  .health{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--muted);padding:7px 8px;background:#0b0c0e;border:1px solid var(--border-soft);border-radius:6px}
+  .dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 auto;background:var(--faint)}
+  .dot.green{background:var(--green);box-shadow:0 0 0 3px rgba(74,222,128,.08)}
+  .dot.red{background:var(--red);box-shadow:0 0 0 3px rgba(248,113,113,.08)}
+  .dot.amber{background:var(--accent);box-shadow:0 0 0 3px rgba(242,163,60,.08)}
+  .dot.blue{background:var(--blue);box-shadow:0 0 0 3px rgba(96,165,250,.08)}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{height:56px;flex:0 0 56px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 26px;position:sticky;top:0;background:rgba(10,10,11,.92);backdrop-filter:blur(8px);z-index:20}
+  .crumb{font-size:12px;color:var(--faint);display:flex;align-items:center;gap:8px}
+  .crumb strong{color:var(--text);font-weight:550}
+  .crumb .slash{color:#34383e}
+  .top-actions{margin-left:auto;display:flex;align-items:center;gap:9px}
+  .search-btn{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;min-width:190px;border:1px solid var(--border);border-radius:7px;background:#0d0e10;color:var(--faint);font-size:11.5px}
+  .search-btn:hover{border-color:#32363c;color:var(--muted)}
+  .search-btn svg{width:14px;height:14px}
+  .search-btn .kbd{margin-left:auto}
+  .pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border:1px solid var(--border);border-radius:999px;font-size:10.5px;color:var(--muted);background:#0d0e10;white-space:nowrap}
+  .icon-btn{width:30px;height:30px;border:1px solid var(--border);background:#0d0e10;border-radius:7px;display:grid;place-items:center;color:var(--muted)}
+  .icon-btn:hover{color:var(--text);border-color:#32363c}
+  .icon-btn svg{width:15px;height:15px}
+  .avatar.top{width:28px;height:28px;background:#1b1e22;color:#cfd3d8;font-size:11px}
+
+  .content{padding:26px;max-width:1500px;width:100%;margin:0 auto}
+  .view{display:none;animation:fade .16s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  .page-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:22px}
+  .page-head h1{font-size:20px;line-height:1.2;letter-spacing:-.02em;font-weight:650;margin:0}
+  .page-head p{margin:5px 0 0;font-size:12px;color:var(--muted)}
+  .page-head .actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .preview-badge{font:9.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border:1px solid rgba(242,163,60,.28);background:var(--accent-soft);padding:5px 7px;border-radius:4px;margin-left:10px;vertical-align:2px}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:6px;border:1px solid var(--border);background:#111316;color:var(--text);font-size:11.5px;font-weight:500;white-space:nowrap}
+  .btn:hover{border-color:#34383e;background:#15171a}
+  .btn svg{width:14px;height:14px}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1206;font-weight:650}
+  .btn.primary:hover{background:#f7b04f;border-color:#f7b04f}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--red);border-color:rgba(248,113,113,.24);background:rgba(248,113,113,.06)}
+  .btn.sm{height:26px;padding:0 8px;font-size:10.5px}
+  .btn.icon{width:30px;padding:0;justify-content:center}
+
+  .grid{display:grid;gap:14px}
+  .stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:14px}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px 13px;position:relative;overflow:hidden}
+  .stat-label{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:600}
+  .stat-value{font-family:var(--mono);font-size:27px;font-weight:600;letter-spacing:-.03em;line-height:1;margin-top:10px}
+  .stat-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:12px}
+  .delta{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .delta.up{color:var(--green)} .delta.down{color:var(--red)}
+  .delta svg{width:11px;height:11px}
+  .spark{flex:0 0 auto;opacity:.9}
+
+  .cols-2{grid-template-columns:minmax(0,1.62fr) minmax(0,1fr)}
+  .cols-3{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,.9fr)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);min-width:0}
+  .panel-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border-soft);min-height:48px}
+  .panel-head h2{font-size:12px;font-weight:600;margin:0;letter-spacing:-.01em}
+  .panel-head .sub{font-size:10.5px;color:var(--faint)}
+  .panel-head .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .panel-body{padding:16px}
+  .panel-body.tight{padding:0}
+  .link{color:var(--muted);font-size:10.5px;display:inline-flex;align-items:center;gap:4px}
+  .link:hover{color:var(--accent)}
+  .link svg{width:11px;height:11px}
+
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#0d0e10}
+  .seg button{height:26px;padding:0 8px;border:0;background:transparent;color:var(--faint);font-size:10px;font-weight:500}
+  .seg button + button{border-left:1px solid var(--border)}
+  .seg button.on{background:#1b1e22;color:var(--text)}
+  .legend{display:flex;align-items:center;gap:12px;font-size:10px;color:var(--faint)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .legend i{width:12px;height:2px;border-radius:2px;background:var(--accent);display:inline-block}
+  .legend i.prev{background:#3a3f46}
+
+  .chart-wrap{padding:6px 10px 10px}
+  .chart{display:block;width:100%;height:auto}
+
+  .table{width:100%;border-collapse:collapse;font-size:12px}
+  .table th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;background:#0e0f11}
+  .table td{padding:11px 14px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+  .table tr:last-child td{border-bottom:0}
+  .table tbody tr:hover td{background:#121417}
+  .table .num{text-align:right;font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+  .table .muted{color:var(--muted)}
+  .table .mono{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .client-cell{display:flex;align-items:center;gap:9px;min-width:150px}
+  .client-cell .avatar{width:24px;height:24px;font-size:9px;background:#171a1e;color:#aeb4bb}
+  .client-cell strong{display:block;font-size:11.5px;font-weight:550}
+  .client-cell span{display:block;font-size:10px;color:var(--faint);margin-top:1px}
+  .row-actions{display:flex;justify-content:flex-end;gap:2px;opacity:.55}
+  tr:hover .row-actions{opacity:1}
+  .row-actions button{width:24px;height:24px;border:0;background:transparent;border-radius:4px;color:var(--muted);display:grid;place-items:center}
+  .row-actions button:hover{background:#1b1e22;color:var(--text)}
+  .row-actions svg{width:13px;height:13px}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:999px;font-size:9.5px;font-weight:550;border:1px solid transparent;white-space:nowrap}
+  .chip .dot{width:5px;height:5px;box-shadow:none}
+  .chip.green{color:var(--green);background:rgba(74,222,128,.07);border-color:rgba(74,222,128,.16)}
+  .chip.red{color:var(--red);background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.16)}
+  .chip.amber{color:var(--accent);background:rgba(242,163,60,.07);border-color:rgba(242,163,60,.18)}
+  .chip.blue{color:var(--blue);background:rgba(96,165,250,.07);border-color:rgba(96,165,250,.16)}
+  .chip.gray{color:var(--muted);background:#15171a;border-color:var(--border)}
+
+  .key-row{display:grid;grid-template-columns:minmax(0,1fr) 90px 38px;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-soft)}
+  .key-row:last-of-type{border-bottom:0}
+  .key-meta{display:flex;align-items:center;gap:7px;min-width:0}
+  .key-meta strong{font-size:11px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .key-meta .mono{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-left:auto;flex:0 0 auto}
+  .bar{height:4px;border-radius:99px;background:#1a1d21;overflow:hidden}
+  .bar span{display:block;height:100%;border-radius:99px;background:var(--accent)}
+  .bar span.blue{background:var(--blue)} .bar span.red{background:var(--red)}
+  .key-pct{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right}
+  .key-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:10px;color:var(--faint)}
+
+  .esc-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-soft)}
+  .esc-row:last-child{border-bottom:0;padding-bottom:0}
+  .esc-dot{width:22px;height:22px;border-radius:6px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.16);display:grid;place-items:center;flex:0 0 auto;color:var(--red)}
+  .esc-dot svg{width:12px;height:12px}
+  .esc-main{min-width:0;flex:1}
+  .esc-main strong{display:block;font-size:11px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .esc-main span{display:block;font-size:10px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .esc-time{font:9.5px/1.4 var(--mono);color:var(--faint);flex:0 0 auto;text-align:right}
+  .esc-time .chip{margin-top:4px}
+
+  .q-row{display:grid;grid-template-columns:minmax(0,1fr) 46px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft)}
+  .q-row:last-child{border-bottom:0}
+  .q-text{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q-count{font-family:var(--mono);font-size:10.5px;color:var(--faint);text-align:right}
+  .q-bar{grid-column:1/-1;height:3px;background:#1a1d21;border-radius:99px;overflow:hidden;margin-top:-3px}
+  .q-bar span{display:block;height:100%;background:#2b2f35;border-radius:99px}
+
+  .sys-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:11px;color:var(--muted)}
+  .sys-row:last-child{border-bottom:0}
+  .sys-row .val{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--faint)}
+
+  .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .input{height:30px;border:1px solid var(--border);border-radius:6px;background:#0d0e10;padding:0 10px;font-size:11.5px;color:var(--text);outline:0;min-width:0}
+  .input:focus{border-color:rgba(242,163,60,.5);box-shadow:0 0 0 3px rgba(242,163,60,.08)}
+  .input::placeholder{color:var(--faint)}
+  .search-field{position:relative;flex:1;max-width:300px}
+  .search-field svg{position:absolute;left:9px;top:8px;width:14px;height:14px;color:var(--faint)}
+  .search-field .input{width:100%;padding-left:29px}
+  select.input{appearance:none;padding-right:26px;background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);background-position:calc(100% - 13px) 12px,calc(100% - 9px) 12px;background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+  .toolbar .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+  .conv-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px}
+  .transcript{padding:16px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:92%;padding:8px 10px;border-radius:8px;font-size:11px;line-height:1.55}
+  .msg.user{background:#1a1d21;border:1px solid #24282e;align-self:flex-end;border-bottom-right-radius:3px}
+  .msg.bot{background:#0d0f11;border:1px solid var(--border-soft);align-self:flex-start;border-bottom-left-radius:3px;color:#cfd3d8}
+  .msg time{display:block;font:9px/1 var(--mono);color:var(--faint);margin-top:5px}
+  .transcript-meta{padding:0 16px 14px;font-size:10px;color:var(--faint);display:flex;gap:10px;flex-wrap:wrap}
+
+  .banner{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(242,163,60,.2);background:rgba(242,163,60,.05);border-radius:8px;font-size:11px;color:#d9b07a;margin-bottom:14px}
+  .banner svg{width:15px;height:15px;flex:0 0 auto}
+  .banner strong{color:var(--accent);font-weight:600}
+
+  .key-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
+  .key-card{padding:16px}
+  .key-card-top{display:flex;align-items:flex-start;gap:10px}
+  .key-card-top .avatar{width:28px;height:28px;border-radius:7px;font-size:10px}
+  .key-card-top h3{margin:0;font-size:12px;font-weight:600}
+  .key-card-top p{margin:3px 0 0;font:10px var(--mono);color:var(--faint)}
+  .key-card-top .chip{margin-left:auto}
+  .gauge{height:6px;border-radius:99px;background:#1a1d21;overflow:hidden;margin:16px 0 8px}
+  .gauge span{display:block;height:100%;border-radius:99px;background:var(--accent)}
+  .gauge span.blue{background:var(--blue)} .gauge span.red{background:var(--red)}
+  .key-card-foot{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--faint)}
+  .key-card-foot strong{color:var(--muted);font-weight:500}
+
+  .settings-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  .form-row{display:grid;grid-template-columns:160px minmax(0,1fr);align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border-soft)}
+  .form-row:last-child{border-bottom:0}
+  .form-row label{font-size:11px;color:var(--muted)}
+  .form-row .hint{font-size:10px;color:var(--faint);margin-top:3px}
+  .form-row .input{width:100%}
+  .form-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:14px}
+  .toggle{width:32px;height:18px;border-radius:99px;background:#24282e;position:relative;border:1px solid #2e3339}
+  .toggle.on{background:rgba(242,163,60,.25);border-color:rgba(242,163,60,.4)}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#8b9098}
+  .toggle.on::after{left:16px;background:var(--accent)}
+  .danger-zone{border-color:rgba(248,113,113,.18)}
+  .danger-zone .panel-head{border-color:rgba(248,113,113,.12)}
+  .danger-zone .panel-head h2{color:var(--red)}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(2px);display:none;place-items:center;z-index:80;padding:20px}
+  .modal-backdrop.open{display:grid}
+  .modal{width:min(480px,100%);background:#101113;border:1px solid #2a2e34;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden}
+  .modal-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)}
+  .modal-head h3{margin:0;font-size:13px;font-weight:600}
+  .modal-head .icon-btn{margin-left:auto;border:0;background:transparent}
+  .modal-body{padding:16px 18px}
+  .modal-body p{margin:0 0 14px;font-size:11px;color:var(--muted)}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:5px}
+  .field .input{width:100%}
+  .modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:13px 18px;border-top:1px solid var(--border);background:#0d0e10}
+  .note{font-size:10px;color:var(--faint);display:flex;gap:6px;align-items:flex-start;line-height:1.5}
+  .note svg{width:13px;height:13px;flex:0 0 auto;margin-top:1px}
+
+  .palette{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);display:none;z-index:90;padding:12vh 20px 20px}
+  .palette.open{display:block}
+  .palette-box{width:min(580px,100%);margin:0 auto;background:#101113;border:1px solid #2a2e34;border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.55);overflow:hidden}
+  .palette-input{width:100%;height:48px;border:0;border-bottom:1px solid var(--border);background:transparent;padding:0 16px;font-size:13px;outline:0}
+  .palette-input::placeholder{color:var(--faint)}
+  .palette-list{max-height:330px;overflow:auto;padding:6px}
+  .palette-group{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:8px 10px 5px}
+  .palette-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;font-size:11.5px;color:var(--muted);cursor:pointer}
+  .palette-item svg{width:14px;height:14px;color:var(--faint)}
+  .palette-item .kbd{margin-left:auto}
+  .palette-item:hover,.palette-item.sel{background:#191b1f;color:var(--text)}
+  .palette-item.sel svg{color:var(--accent)}
+  .palette-empty{padding:20px;text-align:center;font-size:11px;color:var(--faint)}
+
+  .toast{position:fixed;bottom:18px;right:18px;background:#15171a;border:1px solid #2a2e34;border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text);box-shadow:0 12px 40px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;transform:translateY(10px);opacity:0;pointer-events:none;transition:.18s ease;z-index:100}
+  .toast.show{transform:none;opacity:1}
+  .toast svg{width:14px;height:14px;color:var(--green)}
+
+  @media (max-width:1150px){
+    .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .cols-2,.cols-3,.conv-layout,.settings-grid,.key-cards{grid-template-columns:1fr}
+  }
+  @media (max-width:820px){
+    .sidebar{display:none}
+    .content{padding:16px}
+    .topbar{padding:0 16px}
+    .search-btn{min-width:0}
+    .search-btn span:not(.kbd){display:none}
+    .stats{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2"/><path d="m16 4 4 4"/><path d="m13 7 4 4"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3Z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m6 3 15 9-15 9V3Z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.7-.9L3 21l1.9-4.4A8.4 8.4 0 1 1 21 11.5Z"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M4 5h4l4 11 4-11h4l-6 15h-4L4 5Z"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><svg><use href="#i-logo"/></svg></div>
+      <div><div class="brand-name">vizara</div><span class="brand-sub">operator console</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-item active" data-view="overview"><svg><use href="#i-grid"/></svg><span>Overview</span><span class="kbd">g o</span></a>
+      <a class="nav-item" data-view="clients"><svg><use href="#i-users"/></svg><span>Clients</span><span class="kbd">g c</span></a>
+      <a class="nav-item" data-view="conversations"><svg><use href="#i-msg"/></svg><span>Conversations</span><span class="kbd">g v</span></a>
+      <a class="nav-item" data-view="billing"><svg><use href="#i-card"/></svg><span>Billing</span><span class="kbd">g b</span></a>
+      <div class="nav-label">System</div>
+      <a class="nav-item" data-view="keys"><svg><use href="#i-key"/></svg><span>API keys</span><span class="kbd">g k</span></a>
+      <a class="nav-item" data-view="settings"><svg><use href="#i-sliders"/></svg><span>Settings</span><span class="kbd">g s</span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="operator">
+        <div class="avatar">OP</div>
+        <div><strong>Operator</strong><span>local session</span></div>
+      </div>
+      <div class="health"><span class="dot green"></span> All systems nominal</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb">Console <span class="slash">/</span> <strong id="pageTitle">Overview</strong></div>
+      <div class="top-actions">
+        <button class="search-btn" id="openPalette"><svg><use href="#i-search"/></svg><span>Search or jump to…</span><span class="kbd">Ctrl K</span></button>
+        <span class="pill"><span class="dot green"></span> 2 keys active</span>
+        <button class="icon-btn" onclick="toast('No new notifications')"><svg><use href="#i-bell"/></svg></button>
+        <div class="avatar top">OP</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- OVERVIEW -->
+      <section class="view active" id="view-overview">
+        <div class="page-head">
+          <div>
+            <h1>Overview <span class="preview-badge">design preview</span></h1>
+            <p>Everything happening across your support bots, in one place.</p>
+          </div>
+          <div class="actions">
+            <div class="seg" id="range"><button class="on">24h</button><button>7d</button><button>30d</button><button>90d</button></div>
+            <button class="btn"><svg><use href="#i-download"/></svg>Export</button>
+          </div>
+        </div>
+
+        <div class="grid stats">
+          <div class="stat">
+            <div class="stat-label">Active clients</div>
+            <div class="stat-value">4</div>
+            <div class="stat-foot"><span class="delta up"><svg><use href="#i-up"/></svg>1 this month</span>
+              <svg class="spark" width="76" height="26" viewBox="0 0 76 26"><polyline points="0,21 12,18 24,20 36,12 48,15 60,8 76,6" fill="none" stroke="#4ade80" stroke-width="1.5"/></svg>
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Messages · 7 days</div>
+            <div class="stat-value">1,284</div>
+            <div class="stat-foot"><span class="delta up"><svg><use href="#i-up"/></svg>12.4%</span>
+              <svg class="spark" width="76" height="26" viewBox="0 0 76 26"><polyline points="0,20 12,22 24,16 36,18 48,11 60,13 76,5" fill="none" stroke="#f2a33c" stroke-width="1.5"/></svg>
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Escalation rate</div>
+            <div class="stat-value">9.4%</div>
+            <div class="stat-foot"><span class="delta down"><svg><use href="#i-down"/></svg>1.8 pts</span>
+              <svg class="spark" width="76" height="26" viewBox="0 0 76 26"><polyline points="0,8 12,11 24,9 36,15 48,13 60,18 76,20" fill="none" stroke="#4ade80" stroke-width="1.5"/></svg>
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Monthly recurring</div>
+            <div class="stat-value">$360</div>
+            <div class="stat-foot"><span class="delta">4 × $90 plan</span>
+              <svg class="spark" width="76" height="26" viewBox="0 0 76 26"><polyline points="0,19 12,19 24,15 36,15 48,10 60,10 76,6" fill="none" stroke="#60a5fa" stroke-width="1.5"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-bottom:14px">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Messages per day</h2><span class="sub">last 30 days</span>
+              <div class="right">
+                <div class="legend"><span><i></i>this period</span><span><i class="prev"></i>previous</span></div>
+                <div class="seg"><button class="on">30d</button><button>90d</button></div>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <svg class="chart" viewBox="0 0 760 240" role="img" aria-label="Messages per day line chart">
+                <defs><linearGradient id="areaGrad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f2a33c" stop-opacity=".16"/><stop offset="1" stop-color="#f2a33c" stop-opacity="0"/></linearGradient></defs>
+                <g stroke="#1a1d21" stroke-width="1"><line x1="0" y1="40" x2="720" y2="40"/><line x1="0" y1="80" x2="720" y2="80"/><line x1="0" y1="120" x2="720" y2="120"/><line x1="0" y1="160" x2="720" y2="160"/><line x1="0" y1="200" x2="720" y2="200"/></g>
+                <path d="M0,172 24,160 48,168 72,150 96,156 120,138 144,146 168,126 192,132 216,112 240,124 264,104 288,116 312,96 336,106 360,88 384,100 408,90 432,78 456,96 480,82 504,100 528,86 552,108 576,94 600,114 624,100 648,122 672,106 696,118 720,108 L720,210 L0,210 Z" fill="url(#areaGrad)"/>
+                <polyline points="0,172 24,160 48,168 72,150 96,156 120,138 144,146 168,126 192,132 216,112 240,124 264,104 288,116 312,96 336,106 360,88 384,100 408,90 432,78 456,96 480,82 504,100 528,86 552,108 576,94 600,114 624,100 648,122 672,106 696,118 720,108" fill="none" stroke="#f2a33c" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>
+                <polyline points="0,185 24,178 48,182 72,170 96,176 120,162 144,170 168,155 192,160 216,148 240,156 264,142 288,150 312,136 336,144 360,132 384,140 408,130 432,124 456,138 480,128 504,142 528,130 552,148 576,136 600,152 624,140 648,158 672,146 696,156 720,148" fill="none" stroke="#3a3f46" stroke-width="1.3" stroke-dasharray="4 5"/>
+                <line x1="0" y1="210" x2="720" y2="210" stroke="#22252a"/>
+                <circle cx="720" cy="108" r="3.5" fill="#f2a33c" stroke="#0a0a0b" stroke-width="2"/>
+                <g fill="#5d636b" font-family="ui-monospace,monospace" font-size="9">
+                  <text x="0" y="232">Oct 14</text><text x="180" y="232" text-anchor="middle">Oct 21</text><text x="360" y="232" text-anchor="middle">Oct 28</text><text x="540" y="232" text-anchor="middle">Nov 4</text><text x="720" y="232" text-anchor="end">Nov 11</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>API key pool</h2><span class="sub">weighted</span><a class="link right" data-view="keys">Manage <svg><use href="#i-arrow"/></svg></a></div>
+            <div class="panel-body">
+              <div class="key-row">
+                <div class="key-meta"><span class="dot green"></span><strong>Groq — main</strong><span class="mono">gsk_…a1b2</span></div>
+                <div class="bar"><span style="width:54%"></span></div><div class="key-pct">54%</div>
+              </div>
+              <div class="key-row">
+                <div class="key-meta"><span class="dot green"></span><strong>Groq — backup</strong><span class="mono">gsk_…c3d4</span></div>
+                <div class="bar"><span class="blue" style="width:46%"></span></div><div class="key-pct">46%</div>
+              </div>
+              <div class="key-foot"><span>2 active · 0 issues</span><span>8.0k TPM each</span></div>
+              <div style="border-top:1px solid var(--border-soft);margin-top:14px;padding-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                <div><div class="stat-label" style="font-size:9px">Requests</div><div style="font-family:var(--mono);font-size:16px;margin-top:3px">239</div></div>
+                <div><div class="stat-label" style="font-size:9px">Tokens</div><div style="font-family:var(--mono);font-size:16px;margin-top:3px">680k</div></div>
+                <div><div class="stat-label" style="font-size:9px">429s</div><div style="font-family:var(--mono);font-size:16px;margin-top:3px">2</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-bottom:14px">
+          <div class="panel">
+            <div class="panel-head"><h2>Client leaderboard</h2><span class="sub">7-day messages</span><a class="link right" data-view="clients">All clients <svg><use href="#i-arrow"/></svg></a></div>
+            <div class="panel-body tight">
+              <table class="table">
+                <thead><tr><th>Client</th><th class="num">Messages</th><th class="num">Escalated</th><th>Last active</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td><div class="client-cell"><div class="avatar">VS</div><div><strong>Vizara Studio</strong><span>vizarastudioo.netlify.app</span></div></div></td><td class="num">842</td><td class="num">71</td><td class="muted">2 min ago</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td><div class="client-cell"><div class="avatar">AC</div><div><strong>Acme Corp</strong><span>acme.com</span></div></div></td><td class="num">301</td><td class="num">24</td><td class="muted">1 hour ago</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td><div class="client-cell"><div class="avatar">NW</div><div><strong>Northwind</strong><span>northwind.io</span></div></div></td><td class="num">141</td><td class="num">26</td><td class="muted">yesterday</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td><div class="client-cell"><div class="avatar">TC</div><div><strong>Test Client</strong><span>localhost</span></div></div></td><td class="num">0</td><td class="num">0</td><td class="muted">3 days ago</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Recent escalations</h2><span class="chip red" style="margin-left:auto">6 open</span></div>
+            <div class="panel-body">
+              <div class="esc-row"><div class="esc-dot"><svg><use href="#i-alert"/></svg></div><div class="esc-main"><strong>Acme · custom bundle pricing</strong><span>“Can I get a discount for 3 products?”</span></div><div class="esc-time">4m<br><span class="chip amber">open</span></div></div>
+              <div class="esc-row"><div class="esc-dot"><svg><use href="#i-alert"/></svg></div><div class="esc-main"><strong>Vizara · chatbot integration</strong><span>“Does the chatbot work with WhatsApp?”</span></div><div class="esc-time">1h<br><span class="chip amber">open</span></div></div>
+              <div class="esc-row"><div class="esc-dot"><svg><use href="#i-alert"/></svg></div><div class="esc-main"><strong>Northwind · refund request</strong><span>“I need a refund for last month.”</span></div><div class="esc-time">3h<br><span class="chip amber">open</span></div></div>
+              <div class="esc-row"><div class="esc-dot"><svg><use href="#i-alert"/></svg></div><div class="esc-main"><strong>Vizara · custom 60s ad</strong><span>“Can you make a 60-second version?”</span></div><div class="esc-time">5h<br><span class="chip green">resolved</span></div></div>
+              <div class="esc-row"><div class="esc-dot"><svg><use href="#i-alert"/></svg></div><div class="esc-main"><strong>Acme · data deletion</strong><span>“What happens to my data if I cancel?”</span></div><div class="esc-time">1d<br><span class="chip green">resolved</span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="panel">
+            <div class="panel-head"><h2>Top questions</h2><span class="sub">last 7 days</span><a class="link right" data-view="conversations">Explore <svg><use href="#i-arrow"/></svg></a></div>
+            <div class="panel-body" style="padding-top:8px;padding-bottom:8px">
+              <div class="q-row"><span class="q-text">How much does a video ad cost?</span><span class="q-count">184</span><div class="q-bar"><span style="width:100%"></span></div></div>
+              <div class="q-row"><span class="q-text">How much does the AI chatbot cost?</span><span class="q-count">131</span><div class="q-bar"><span style="width:71%"></span></div></div>
+              <div class="q-row"><span class="q-text">What is the turnaround time?</span><span class="q-count">96</span><div class="q-bar"><span style="width:52%"></span></div></div>
+              <div class="q-row"><span class="q-text">Do you offer product photography?</span><span class="q-count">74</span><div class="q-bar"><span style="width:40%"></span></div></div>
+              <div class="q-row"><span class="q-text">Can I see samples of your work?</span><span class="q-count">58</span><div class="q-bar"><span style="width:31%"></span></div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>System</h2><span class="sub">local</span></div>
+            <div class="panel-body" style="padding-top:8px;padding-bottom:8px">
+              <div class="sys-row"><span class="dot green"></span> Local dashboard <span class="val">127.0.0.1:8787</span></div>
+              <div class="sys-row"><span class="dot green"></span> Conversation DB <span class="val">373 rows · 1.2 MB</span></div>
+              <div class="sys-row"><span class="dot green"></span> Vizara index <span class="val">35 chunks · fresh</span></div>
+              <div class="sys-row"><span class="dot amber"></span> Render demo <span class="val">200 · 1.25 s</span></div>
+              <div class="sys-row"><span class="dot green"></span> Last backup <span class="val">today 09:41</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLIENTS -->
+      <section class="view" id="view-clients">
+        <div class="page-head">
+          <div><h1>Clients</h1><p>Accounts, plans, usage, and billing status.</p></div>
+          <div class="actions"><button class="btn"><svg><use href="#i-download"/></svg>Export CSV</button><button class="btn primary"><svg><use href="#i-plus"/></svg>New client</button></div>
+        </div>
+        <div class="toolbar">
+          <div class="search-field"><svg><use href="#i-search"/></svg><input class="input" placeholder="Search clients…" id="clientSearch"></div>
+          <select class="input"><option>All statuses</option><option>Active</option><option>Paused</option><option>Archived</option></select>
+          <select class="input"><option>All plans</option><option>Chatbot Starter</option><option>Trial</option></select>
+          <div class="right"><span class="muted" style="font-size:10.5px;color:var(--faint)">4 clients</span></div>
+        </div>
+        <div class="panel">
+          <div class="panel-body tight">
+            <table class="table" id="clientsTable">
+              <thead><tr><th>Client</th><th>Domain</th><th>Status</th><th>Plan</th><th>Billing</th><th class="num">Messages 7d</th><th>Last active</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><div class="client-cell"><div class="avatar">VS</div><div><strong>Vizara Studio</strong><span>client_vizara</span></div></div></td><td class="mono">vizarastudioo.netlify.app</td><td><span class="chip green"><span class="dot green"></span>Active</span></td><td class="muted">Chatbot Starter</td><td><span class="chip green">Paid</span></td><td class="num">842</td><td class="muted">2 min ago</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button><button title="More"><svg><use href="#i-more"/></svg></button></div></td></tr>
+                <tr><td><div class="client-cell"><div class="avatar">AC</div><div><strong>Acme Corp</strong><span>client_acme</span></div></div></td><td class="mono">acme.com</td><td><span class="chip green"><span class="dot green"></span>Active</span></td><td class="muted">Chatbot Starter</td><td><span class="chip green">Paid</span></td><td class="num">301</td><td class="muted">1 hour ago</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button><button title="More"><svg><use href="#i-more"/></svg></button></div></td></tr>
+                <tr><td><div class="client-cell"><div class="avatar">NW</div><div><strong>Northwind</strong><span>client_northwind</span></div></div></td><td class="mono">northwind.io</td><td><span class="chip green"><span class="dot green"></span>Active</span></td><td class="muted">Chatbot Starter</td><td><span class="chip red">Past due</span></td><td class="num">141</td><td class="muted">yesterday</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button><button title="More"><svg><use href="#i-more"/></svg></button></div></td></tr>
+                <tr><td><div class="client-cell"><div class="avatar">TC</div><div><strong>Test Client</strong><span>client_test</span></div></div></td><td class="mono">localhost</td><td><span class="chip gray"><span class="dot"></span>Paused</span></td><td class="muted">Trial</td><td><span class="chip gray">—</span></td><td class="num">0</td><td class="muted">3 days ago</td><td><div class="row-actions"><button title="Open"><svg><use href="#i-arrow"/></svg></button><button title="More"><svg><use href="#i-more"/></svg></button></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONVERSATIONS -->
+      <section class="view" id="view-conversations">
+        <div class="page-head">
+          <div><h1>Conversations</h1><p>Search transcripts, inspect escalations, and mark follow-ups resolved.</p></div>
+          <div class="actions"><button class="btn"><svg><use href="#i-download"/></svg>Export</button></div>
+        </div>
+        <div class="toolbar">
+          <div class="search-field"><svg><use href="#i-search"/></svg><input class="input" placeholder="Search messages…"></div>
+          <select class="input"><option>All clients</option><option>Vizara Studio</option><option>Acme Corp</option><option>Northwind</option></select>
+          <select class="input"><option>All conversations</option><option>Escalated only</option><option>Resolved</option></select>
+          <select class="input"><option>Last 7 days</option><option>Last 30 days</option><option>All time</option></select>
+        </div>
+        <div class="conv-layout">
+          <div class="panel">
+            <div class="panel-body tight">
+              <table class="table">
+                <thead><tr><th>Time</th><th>Client</th><th>Question</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">14:32</td><td class="muted">Acme</td><td>Can I get a discount for 3 products?</td><td><span class="chip amber">Escalated</span></td><td><div class="row-actions"><button><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td class="mono">14:12</td><td class="muted">Vizara</td><td>How much does the AI chatbot service cost?</td><td><span class="chip green">Answered</span></td><td><div class="row-actions"><button><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td class="mono">13:48</td><td class="muted">Vizara</td><td>What orientation should my video ad be?</td><td><span class="chip green">Answered</span></td><td><div class="row-actions"><button><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td class="mono">12:20</td><td class="muted">Northwind</td><td>I need a refund for last month.</td><td><span class="chip amber">Escalated</span></td><td><div class="row-actions"><button><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td class="mono">11:05</td><td class="muted">Acme</td><td>What is Widget Pro?</td><td><span class="chip green">Answered</span></td><td><div class="row-actions"><button><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                  <tr><td class="mono">09:41</td><td class="muted">Vizara</td><td>Do you offer a free trial for the chatbot?</td><td><span class="chip green">Answered</span></td><td><div class="row-actions"><button><svg><use href="#i-arrow"/></svg></button></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Transcript</h2><span class="sub">session 8f2c…a91d</span><button class="btn sm right">Mark resolved</button></div>
+            <div class="transcript">
+              <div class="msg user">Can I get a discount if I order 3 product photos and a video ad?<time>14:31</time></div>
+              <div class="msg bot">That’s a custom bundle, so I don’t want to guess on pricing. Let me connect you with Wasif — could you share your email?<time>14:31</time></div>
+              <div class="msg user">Sure, ali@example.com<time>14:32</time></div>
+              <div class="msg bot">Thanks — Wasif has been notified and will follow up at ali@example.com within ~1 hour.<time>14:32</time></div>
+            </div>
+            <div class="transcript-meta"><span class="chip amber">Escalated</span><span>needs_human</span><span>·</span><span>Acme Corp</span><span>·</span><span>4 messages</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BILLING -->
+      <section class="view" id="view-billing">
+        <div class="page-head">
+          <div><h1>Billing</h1><p>Subscriptions, invoices, and hosted payment links. Reconciliation is manual in v1.</p></div>
+          <div class="actions"><button class="btn"><svg><use href="#i-download"/></svg>Export</button><button class="btn primary"><svg><use href="#i-plus"/></svg>New invoice</button></div>
+        </div>
+        <div class="banner"><svg><use href="#i-shield"/></svg><span><strong>Hosted payment links.</strong> Create the checkout or subscription link at Lemon Squeezy (international) or Safepay (Pakistan), attach it to the invoice, and mark the invoice paid after the provider confirms it. No card data is collected or stored here.</span></div>
+        <div class="grid stats">
+          <div class="stat"><div class="stat-label">MRR</div><div class="stat-value">$360</div><div class="stat-foot"><span class="delta">4 active subscriptions</span></div></div>
+          <div class="stat"><div class="stat-label">Collected · November</div><div class="stat-value">$270</div><div class="stat-foot"><span class="delta up"><svg><use href="#i-up"/></svg>3 paid</span></div></div>
+          <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-value">$90</div><div class="stat-foot"><span class="delta">1 invoice sent</span></div></div>
+          <div class="stat"><div class="stat-label">Overdue</div><div class="stat-value">1</div><div class="stat-foot"><span class="delta down"><svg><use href="#i-alert"/></svg>Northwind · 6 days</span></div></div>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <div class="panel-head"><h2>Subscriptions</h2><span class="sub">4 total</span></div>
+          <div class="panel-body tight">
+            <table class="table">
+              <thead><tr><th>Client</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Period end</th><th>Next invoice</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><div class="client-cell"><div class="avatar">VS</div><div><strong>Vizara Studio</strong><span>client_vizara</span></div></div></td><td class="muted">Chatbot Starter</td><td class="num">$90.00</td><td><span class="chip green">Active</span></td><td class="mono">Dec 01, 2026</td><td class="muted">Dec 01, 2026</td><td><div class="row-actions"><button><svg><use href="#i-more"/></svg></button></div></td></tr>
+                <tr><td><div class="client-cell"><div class="avatar">AC</div><div><strong>Acme Corp</strong><span>client_acme</span></div></div></td><td class="muted">Chatbot Starter</td><td class="num">$90.00</td><td><span class="chip green">Active</span></td><td class="mono">Dec 04, 2026</td><td class="muted">Dec 04, 2026</td><td><div class="row-actions"><button><svg><use href="#i-more"/></svg></button></div></td></tr>
+                <tr><td><div class="client-cell"><div class="avatar">NW</div><div><strong>Northwind</strong><span>client_northwind</span></div></div></td><td class="muted">Chatbot Starter</td><td class="num">$90.00</td><td><span class="chip red">Past due</span></td><td class="mono">Nov 06, 2026</td><td class="muted">Nov 06, 2026</td><td><div class="row-actions"><button><svg><use href="#i-more"/></svg></button></div></td></tr>
+                <tr><td><div class="client-cell"><div class="avatar">TC</div><div><strong>Test Client</strong><span>client_test</span></div></div></td><td class="muted">Trial</td><td class="num">$0.00</td><td><span class="chip gray">Trial</span></td><td class="mono">—</td><td class="muted">—</td><td><div class="row-actions"><button><svg><use href="#i-more"/></svg></button></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <div class="panel-head"><h2>Invoices</h2><span class="sub">November 2026</span><a class="link right">View all <svg><use href="#i-arrow"/></svg></a></div>
+          <div class="panel-body tight">
+            <table class="table">
+              <thead><tr><th>Number</th><th>Client</th><th>Issued</th><th>Due</th><th class="num">Amount</th><th>Status</th><th>Payment link</th><th></th></tr></thead>
+              <tbody>
+                <tr><td class="mono">INV-2026-0012</td><td class="muted">Vizara Studio</td><td class="mono">Nov 01</td><td class="mono">Nov 01</td><td class="num">$90.00</td><td><span class="chip green">Paid</span></td><td><span class="chip green">Lemon Squeezy</span></td><td><div class="row-actions"><button><svg><use href="#i-eye"/></svg></button></div></td></tr>
+                <tr><td class="mono">INV-2026-0011</td><td class="muted">Acme Corp</td><td class="mono">Nov 04</td><td class="mono">Nov 04</td><td class="num">$90.00</td><td><span class="chip green">Paid</span></td><td><span class="chip green">Safepay</span></td><td><div class="row-actions"><button><svg><use href="#i-eye"/></svg></button></div></td></tr>
+                <tr><td class="mono">INV-2026-0010</td><td class="muted">Northwind</td><td class="mono">Nov 06</td><td class="mono">Nov 06</td><td class="num">$90.00</td><td><span class="chip red">Overdue</span></td><td><span class="chip amber">Link ready</span></td><td><div class="row-actions"><button><svg><use href="#i-eye"/></svg></button></div></td></tr>
+                <tr><td class="mono">INV-2026-0009</td><td class="muted">Vizara Studio</td><td class="mono">Oct 01</td><td class="mono">Oct 01</td><td class="num">$90.00</td><td><span class="chip green">Paid</span></td><td><span class="chip green">Lemon Squeezy</span></td><td><div class="row-actions"><button><svg><use href="#i-eye"/></svg></button></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Payment links</h2><span class="sub">hosted checkout · no card data</span></div>
+          <div class="panel-body">
+            <div class="sys-row"><span class="dot green"></span> Lemon Squeezy — international subscriptions &amp; tax <span class="val">Open store</span></div>
+            <div class="sys-row"><span class="dot blue"></span> Safepay — Pakistan cards, wallets &amp; bank transfer <span class="val">Open store</span></div>
+            <div class="sys-row"><span class="dot amber"></span> Manual — bank / Wise / local transfer <span class="val">Record only</span></div>
+            <div class="note" style="margin-top:10px"><svg><use href="#i-info"/></svg><span>Links are pasted into an invoice and sent to the client. Recording payment extends the subscription one period. Webhooks are a post-v1 addition; see <span class="mono">PAYMENTS.md</span>.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- API KEYS -->
+      <section class="view" id="view-keys">
+        <div class="page-head">
+          <div><h1>API keys</h1><p>Encrypted, masked, health-checked, and load-balanced across Groq keys.</p></div>
+          <div class="actions"><button class="btn" onclick="toast('All keys tested — 2 healthy')"><svg><use href="#i-refresh"/></svg>Test all</button><button class="btn primary" onclick="openModal()"><svg><use href="#i-plus"/></svg>Add key</button></div>
+        </div>
+        <div class="banner"><svg><use href="#i-alert"/></svg><span><strong>Capacity note.</strong> Groq free tier is 1,000 requests/day and 8,000 tokens/min per key. With <span class="mono">top_k: 10</span>, a single RAG call can use 3–4k tokens. Lower <span class="mono">top_k</span> if you see 429s.</span></div>
+        <div class="key-cards">
+          <div class="key-card panel">
+            <div class="key-card-top"><div class="avatar">G</div><div><h3>Groq — main</h3><p>gsk_…a1b2</p></div><span class="chip green"><span class="dot green"></span>Active</span></div>
+            <div class="gauge"><span style="width:62%"></span></div>
+            <div class="key-card-foot"><span><strong>62%</strong> TPM used</span><span>1,000 req/day</span></div>
+            <div class="key-card-foot" style="margin-top:6px"><span>148 requests today</span><span>2 × 429</span></div>
+          </div>
+          <div class="key-card panel">
+            <div class="key-card-top"><div class="avatar">G</div><div><h3>Groq — backup</h3><p>gsk_…c3d4</p></div><span class="chip green"><span class="dot green"></span>Active</span></div>
+            <div class="gauge"><span class="blue" style="width:38%"></span></div>
+            <div class="key-card-foot"><span><strong>38%</strong> TPM used</span><span>1,000 req/day</span></div>
+            <div class="key-card-foot" style="margin-top:6px"><span>91 requests today</span><span>0 × 429</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Key pool</h2><span class="sub">weighted round-robin</span><div class="right"><span class="pill"><span class="dot green"></span>2 active</span><span class="pill"><span class="dot"></span>0 issues</span></div></div>
+          <div class="panel-body tight">
+            <table class="table">
+              <thead><tr><th>Label</th><th>Provider</th><th>Key</th><th>Status</th><th class="num">Weight</th><th class="num">Req today</th><th class="num">Tokens</th><th class="num">429s</th><th>Last used</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><strong style="font-weight:550">Groq — main</strong></td><td class="muted">Groq</td><td class="mono">gsk_…a1b2</td><td><span class="chip green"><span class="dot green"></span>Active</span></td><td class="num">2</td><td class="num">148</td><td class="num">412k</td><td class="num">2</td><td class="muted">now</td><td><div class="row-actions"><button title="Test"><svg><use href="#i-play"/></svg></button><button title="Edit"><svg><use href="#i-sliders"/></svg></button><button title="Delete"><svg><use href="#i-trash"/></svg></button></div></td></tr>
+                <tr><td><strong style="font-weight:550">Groq — backup</strong></td><td class="muted">Groq</td><td class="mono">gsk_…c3d4</td><td><span class="chip green"><span class="dot green"></span>Active</span></td><td class="num">1</td><td class="num">91</td><td class="num">268k</td><td class="num">0</td><td class="muted">2m ago</td><td><div class="row-actions"><button title="Test"><svg><use href="#i-play"/></svg></button><button title="Edit"><svg><use href="#i-sliders"/></svg></button><button title="Delete"><svg><use href="#i-trash"/></svg></button></div></td></tr>
+                <tr><td><strong style="font-weight:550">Groq - spare</strong></td><td class="muted">Groq</td><td class="mono">gsk_…g7h8</td><td><span class="chip gray"><span class="dot"></span>Disabled</span></td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="muted">never</td><td><div class="row-actions"><button title="Test"><svg><use href="#i-play"/></svg></button><button title="Edit"><svg><use href="#i-sliders"/></svg></button><button title="Delete"><svg><use href="#i-trash"/></svg></button></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:14px">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Requests per hour</h2><span class="sub">last 24 hours</span>
+              <div class="right"><div class="legend"><span><i></i>main</span><span><i class="prev" style="background:#60a5fa"></i>backup</span></div></div>
+            </div>
+            <div class="chart-wrap">
+              <svg class="chart" viewBox="0 0 720 180" role="img" aria-label="Requests per hour by key">
+                <g stroke="#1a1d21" stroke-width="1"><line x1="0" y1="30" x2="720" y2="30"/><line x1="0" y1="60" x2="720" y2="60"/><line x1="0" y1="90" x2="720" y2="90"/><line x1="0" y1="120" x2="720" y2="120"/><line x1="0" y1="150" x2="720" y2="150"/></g>
+                <polyline points="0,135 30,128 60,140 90,120 120,118 150,110 180,122 210,105 240,98 270,112 300,90 330,86 360,100 390,82 420,78 450,92 480,70 510,74 540,88 570,96 600,110 630,118 660,124 690,132 720,128" fill="none" stroke="#f2a33c" stroke-width="1.7" stroke-linejoin="round"/>
+                <polyline points="0,142 30,138 60,145 90,132 120,130 150,124 180,135 210,120 240,116 270,126 300,110 330,106 360,118 390,102 420,98 450,110 480,92 510,96 540,108 570,114 600,126 630,132 660,138 690,144 720,140" fill="none" stroke="#60a5fa" stroke-width="1.4" stroke-linejoin="round"/>
+                <line x1="0" y1="150" x2="720" y2="150" stroke="#22252a"/>
+                <g fill="#5d636b" font-family="ui-monospace,monospace" font-size="9">
+                  <text x="0" y="172">00:00</text><text x="180" y="172" text-anchor="middle">06:00</text><text x="360" y="172" text-anchor="middle">12:00</text><text x="540" y="172" text-anchor="middle">18:00</text><text x="720" y="172" text-anchor="end">now</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Recent key events</h2><span class="sub">today</span></div>
+            <div class="panel-body" style="padding-top:8px;padding-bottom:8px">
+              <div class="sys-row"><span class="dot amber"></span> Groq main hit 429 — cooled down 60s <span class="val">14:02</span></div>
+              <div class="sys-row"><span class="dot green"></span> Groq backup checked OK <span class="val">13:40</span></div>
+              <div class="sys-row"><span class="dot green"></span> Groq main checked OK <span class="val">13:40</span></div>
+              <div class="sys-row"><span class="dot green"></span> Key pool rebalanced after weight change <span class="val">09:00</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view" id="view-settings">
+        <div class="page-head">
+          <div><h1>Settings</h1><p>Local console configuration. Secrets never appear on this page.</p></div>
+          <div class="actions"><button class="btn" onclick="toast('Backup created in admin/backups/')"><svg><use href="#i-db"/></svg>Back up now</button></div>
+        </div>
+        <div class="settings-grid">
+          <div class="panel">
+            <div class="panel-head"><h2>Admin &amp; security</h2><span class="sub">single operator</span></div>
+            <div class="panel-body">
+              <div class="form-row"><label>Admin password</label><div><input class="input" type="password" value="············"><div class="hint">Minimum 12 characters. Changing this signs out other sessions.</div></div></div>
+              <div class="form-row"><label>Session timeout</label><div><select class="input"><option>12 hours idle</option><option>1 hour idle</option><option>24 hours idle</option></select></div></div>
+              <div class="form-row"><label>Bind address</label><div><input class="input" value="127.0.0.1" disabled><div class="hint">Local-only by design. Never expose this port.</div></div></div>
+              <div class="form-row"><label>Login rate limit</label><div><input class="input" value="5 attempts / minute" disabled></div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Models &amp; retrieval</h2><span class="sub">applies to local bot</span></div>
+            <div class="panel-body">
+              <div class="form-row"><label>Groq model</label><div><input class="input" value="openai/gpt-oss-20b"><div class="hint">Verified present on both keys · Nov 12, 2026. Editable without a code change.</div></div></div>
+              <div class="form-row"><label>Retrieval</label><div class="hint" style="margin-top:2px">Per-client <span class="mono">top_k</span> and <span class="mono">score_threshold</span> live on each client's <strong>Settings</strong> tab. Keep <span class="mono">top_k</span> at 6 on free Groq keys.</div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Notifications</h2><span class="sub">escalations</span></div>
+            <div class="panel-body">
+              <div class="form-row"><label>Notify email</label><div><input class="input" value="wasif@vizarastudio.com"></div></div>
+              <div class="form-row"><label>Formspree URL</label><div><input class="input" placeholder="Not configured"><div class="hint">Escalation emails are logged locally until this is set.</div></div></div>
+              <div class="form-row"><label>Escalation digest</label><div><div class="toggle on"></div></div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Data &amp; backups</h2><span class="sub">local files</span></div>
+            <div class="panel-body">
+              <div class="form-row"><label>Admin database</label><div class="mono" style="font-size:10.5px;color:var(--muted)">admin/admin.db · 1.2 MB</div></div>
+              <div class="form-row"><label>Conversation log</label><div class="mono" style="font-size:10.5px;color:var(--muted)">logs/conversations.db · 373 rows</div></div>
+              <div class="form-row"><label>Last backup</label><div style="font-size:11px;color:var(--muted)">Today, 09:41 · 1.4 MB</div></div>
+              <div class="form-row"><label>Actions</label><div style="display:flex;gap:8px"><button class="btn sm" onclick="toast('Backup created: backups/2026-11-12.zip')"><svg><use href="#i-db"/></svg>Back up now</button><button class="btn sm"><svg><use href="#i-download"/></svg>Export CSV</button></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel danger-zone" style="margin-top:14px">
+          <div class="panel-head"><h2>Session control</h2><span class="sub">single operator</span></div>
+          <div class="panel-body" style="display:flex;align-items:center;gap:16px">
+            <div><div style="font-size:11.5px;font-weight:550">Sign out other sessions</div><div style="font-size:10.5px;color:var(--faint);margin-top:3px">Ends every session except this one. Changing the password does the same.</div></div>
+            <button class="btn danger" style="margin-left:auto" onclick="toast('Other sessions signed out')">Sign out others</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Add key modal -->
+<div class="modal-backdrop" id="keyModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Add API key</h3><button class="icon-btn" onclick="closeModal()"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <p>The key is validated against Groq, encrypted with a local master key, and never displayed in full again.</p>
+      <div class="field"><label>Provider</label><input class="input" value="Groq" disabled></div>
+      <div class="field"><label>Label</label><input class="input" placeholder="e.g. Groq - main"></div>
+      <div class="field"><label>API key</label><input class="input" type="password" placeholder="gsk_…" autocomplete="off"><div class="note" style="margin-top:6px"><svg><use href="#i-shield"/></svg>Stored encrypted at rest. Only the last 4 characters are shown after saving.</div></div>
+      <div class="field" style="margin-bottom:0"><label>Weight</label><input class="input" type="number" value="1" min="1" max="10"><div class="hint">Higher weight receives a larger share of requests.</div></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="closeModal();toast('Key validated and added')">Validate &amp; add</button></div>
+  </div>
+</div>
+
+<!-- Command palette -->
+<div class="palette" id="palette">
+  <div class="palette-box">
+    <input class="palette-input" id="paletteInput" placeholder="Search clients, pages, or actions…">
+    <div class="palette-list" id="paletteList">
+      <div class="palette-group">Navigate</div>
+      <div class="palette-item" data-view="overview"><svg><use href="#i-grid"/></svg>Overview<span class="kbd">g o</span></div>
+      <div class="palette-item" data-view="clients"><svg><use href="#i-users"/></svg>Clients<span class="kbd">g c</span></div>
+      <div class="palette-item" data-view="conversations"><svg><use href="#i-msg"/></svg>Conversations<span class="kbd">g v</span></div>
+      <div class="palette-item" data-view="billing"><svg><use href="#i-card"/></svg>Billing<span class="kbd">g b</span></div>
+      <div class="palette-item" data-view="keys"><svg><use href="#i-key"/></svg>API keys<span class="kbd">g k</span></div>
+      <div class="palette-item" data-view="settings"><svg><use href="#i-sliders"/></svg>Settings<span class="kbd">g s</span></div>
+      <div class="palette-group">Actions</div>
+      <div class="palette-item" data-action="new-client"><svg><use href="#i-plus"/></svg>New client</div>
+      <div class="palette-item" data-action="new-key"><svg><use href="#i-key"/></svg>Add API key</div>
+      <div class="palette-item" data-action="test-keys"><svg><use href="#i-refresh"/></svg>Test all keys</div>
+      <div class="palette-item" data-action="backup"><svg><use href="#i-db"/></svg>Create backup</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg><use href="#i-check"/></svg><span id="toastText">Done</span></div>
+
+<script>
+  const titles = {overview:"Overview",clients:"Clients",conversations:"Conversations",billing:"Billing",keys:"API keys",settings:"Settings"};
+  const views = document.querySelectorAll(".view");
+  const navs = document.querySelectorAll(".nav-item");
+  const pageTitle = document.getElementById("pageTitle");
+
+  function go(view){
+    if(!titles[view]) return;
+    views.forEach(v=>v.classList.toggle("active", v.id === "view-" + view));
+    navs.forEach(n=>n.classList.toggle("active", n.dataset.view === view));
+    pageTitle.textContent = titles[view];
+    window.scrollTo({top:0,behavior:"instant"});
+    try { history.replaceState(null,"","#"+view); } catch (e) { /* file:// preview */ }
+  }
+
+  navs.forEach(n=>n.addEventListener("click",e=>{e.preventDefault();go(n.dataset.view)}));
+  document.querySelectorAll("[data-view]").forEach(el=>{
+    if(el.classList.contains("nav-item")) return;
+    el.addEventListener("click",e=>{e.preventDefault();go(el.dataset.view)});
+  });
+
+  document.querySelectorAll("#range button, .seg").forEach(seg=>{
+    if(seg.id === "range"){
+      seg.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+        seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+      }));
+    }
+  });
+
+  const palette = document.getElementById("palette");
+  const paletteInput = document.getElementById("paletteInput");
+  const paletteList = document.getElementById("paletteList");
+  const paletteItems = Array.from(paletteList.querySelectorAll(".palette-item"));
+  let sel = 0;
+
+  function openPalette(){
+    palette.classList.add("open");paletteInput.value="";filterPalette("");sel=0;
+    setTimeout(()=>paletteInput.focus(),10);
+  }
+  function closePalette(){palette.classList.remove("open")}
+  function filterPalette(q){
+    q=q.toLowerCase().trim();
+    paletteItems.forEach(el=>{el.style.display = !q || el.textContent.toLowerCase().includes(q) ? "flex":"none"});
+    const visible = paletteItems.filter(el=>el.style.display!=="none");
+    visible.forEach((el,i)=>el.classList.toggle("sel", i===sel));
+    const empty = document.getElementById("paletteEmpty");
+    if(empty) empty.remove();
+    if(!visible.length){
+      const d=document.createElement("div");d.id="paletteEmpty";d.className="palette-empty";d.textContent="No matches";paletteList.appendChild(d);
+    }
+  }
+  function activatePalette(el){
+    if(!el) return;
+    if(el.dataset.view){go(el.dataset.view);closePalette();return}
+    if(el.dataset.action === "new-key"){closePalette();openModal();return}
+    if(el.dataset.action === "test-keys"){closePalette();toast("All keys tested — 2 healthy, 1 payment required");return}
+    if(el.dataset.action === "backup"){closePalette();toast("Backup created: backups/2026-11-12.zip");return}
+    if(el.dataset.action === "new-client"){closePalette();go("clients");toast("Client form would open here");return}
+  }
+  paletteInput.addEventListener("input",()=>{sel=0;filterPalette(paletteInput.value)});
+  paletteInput.addEventListener("keydown",e=>{
+    const visible = paletteItems.filter(el=>el.style.display!=="none");
+    if(e.key==="ArrowDown"){e.preventDefault();sel=Math.min(sel+1,visible.length-1);filterPalette(paletteInput.value)}
+    if(e.key==="ArrowUp"){e.preventDefault();sel=Math.max(sel-1,0);filterPalette(paletteInput.value)}
+    if(e.key==="Enter"){e.preventDefault();activatePalette(visible[sel])}
+    if(e.key==="Escape"){closePalette()}
+  });
+  paletteItems.forEach(el=>el.addEventListener("click",()=>activatePalette(el)));
+  palette.addEventListener("click",e=>{if(e.target===palette)closePalette()});
+  document.getElementById("openPalette").addEventListener("click",openPalette);
+
+  const modal = document.getElementById("keyModal");
+  function openModal(){modal.classList.add("open")}
+  function closeModal(){modal.classList.remove("open")}
+  modal.addEventListener("click",e=>{if(e.target===modal)closeModal()});
+
+  let toastTimer;
+  function toast(msg){
+    const t=document.getElementById("toast");
+    document.getElementById("toastText").textContent=msg;
+    t.classList.add("show");clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove("show"),2600);
+  }
+
+  // g + letter navigation, Ctrl/Cmd+K palette, Esc closes
+  let gPressed=false,gTimer;
+  document.addEventListener("keydown",e=>{
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="k"){e.preventDefault();openPalette();return}
+    if(e.key==="Escape"){closePalette();closeModal();return}
+    if(e.target.matches("input,textarea,select")) return;
+    if(e.key.toLowerCase()==="g"){gPressed=true;clearTimeout(gTimer);gTimer=setTimeout(()=>gPressed=false,900);return}
+    if(gPressed){
+      const map={o:"overview",c:"clients",v:"conversations",b:"billing",k:"keys",s:"settings"};
+      if(map[e.key.toLowerCase()]){go(map[e.key.toLowerCase()]);gPressed=false}
+    }
+  });
+
+  document.getElementById("clientSearch").addEventListener("input",e=>{
+    const q=e.target.value.toLowerCase();
+    document.querySelectorAll("#clientsTable tbody tr").forEach(tr=>{
+      tr.style.display=tr.textContent.toLowerCase().includes(q)?"":"none";
+    });
+  });
+
+  const initial=(location.hash||"#overview").slice(1);
+  if(titles[initial]) go(initial); else go("overview");
+</script>
+</body>
+</html>

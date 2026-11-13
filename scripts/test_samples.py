@@ -24,7 +24,12 @@ for messages, label in tests:
     print(f"\n=== {label} ===")
     sid = messages[0][0].replace(" ", "_")[:20] + "_" + str(hash(label))[-6:]
     for q, _ in messages:
-        resp = httpx.post(f"{BASE}/chat", json={"session_id": sid, "query": q}, timeout=30)
+        resp = httpx.post(f"{BASE}/chat", json={"session_id": sid, "query": q, "client_id": "vizara"}, timeout=30)
+        if resp.status_code != 200:
+            print(f"  Q: {q}")
+            print(f"  HTTP {resp.status_code}: {resp.text}")
+            print()
+            continue
         data = resp.json()
         print(f"  Q: {q}")
         print(f"  A: {data['answer']}")

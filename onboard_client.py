@@ -1,6 +1,11 @@
-import re
-import sys
+"""CLI onboarding helper (the dashboard is the primary flow).
+
+Creates a config file + raw content folder and runs ingestion. It no longer
+edits src/server.py: server.py reads the config directory at runtime.
+"""
+
 import shutil
+import sys
 from pathlib import Path
 
 import yaml
@@ -8,136 +13,46 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent
 DATA_DIR = REPO_ROOT / "data"
 CONFIG_DIR = REPO_ROOT / "config"
-SERVER_PY = REPO_ROOT / "src" / "server.py"
 
 
 def _parse_args():
     args = {}
     for arg in sys.argv[1:]:
         if "=" in arg:
-            k, v = arg.split("=", 1)
-            args[k] = v
+            key, value = arg.split("=", 1)
+            args[key] = value
     return args
 
 
-def _add_to_server_py(client_id: str, domain: str):
-    """Insert the client into VALID_CLIENT_IDS and CLIENT_DOMAINS in server.py.
-
-    Uses regexes rather than literal string replacement so it keeps working no
-    matter how many clients were onboarded before.
-    """
-    content = SERVER_PY.read_text(encoding="utf-8")
-    added_ids = False
-    added_domain = False
-
-    # --- VALID_CLIENT_IDS ---
-    ids_match = re.search(r"^VALID_CLIENT_IDS = \{([^}]*)\}", content, re.MULTILINE)
-    if ids_match:
-        existing = [x.strip().strip('"').strip("'") for x in ids_match.group(1).split(",") if x.strip()]
-        if client_id not in existing:
-            existing.append(client_id)
-            new_line = "VALID_CLIENT_IDS = {" + ", ".join(f'"{c}"' for c in existing) + "}"
-            content = content[: ids_match.start()] + new_line + content[ids_match.end():]
-            added_ids = True
-
-    # --- CLIENT_DOMAINS ---
-    domains_match = re.search(r"^CLIENT_DOMAINS = \{(.*?)^\}", content, re.MULTILINE | re.DOTALL)
-    if domains_match:
-        body = domains_match.group(1)
-        if f'"{client_id}"' not in body:
-            # append before the closing brace, preserving indentation
-            new_body = body.rstrip("\n") + f'\n    "{client_id}": "{domain}",\n'
-            content = content[: domains_match.start(1)] + new_body + content[domains_match.end(1):]
-            added_domain = True
-
-    SERVER_PY.write_text(content, encoding="utf-8")
-
-    if added_ids:
-        print(f"  [OK]   Added '{client_id}' to VALID_CLIENT_IDS")
-    else:
-        print(f"  [SKIP] '{client_id}' already in VALID_CLIENT_IDS")
-
-    if added_domain:
-        print(f"  [OK]   Added '{client_id}' -> '{domain}' to CLIENT_DOMAINS")
-    else:
-        print(f"  [SKIP] '{client_id}' already in CLIENT_DOMAINS")
-
-    if not added_ids or not added_domain:
-        print("  [WARN] server.py was already partially updated - verify by hand before deploying")
-
-
-def _create_client_config(client_id: str, display_name: str, content_folder: Path, persona: str = None):
-    config_path = CONFIG_DIR / f"client_{client_id}.yaml"
-    if config_path.exists():
-        print(f"  [SKIP] Config already exists at {config_path}")
-        return
-
-    # List files in content folder
-    files = sorted(f for f in content_folder.iterdir() if f.suffix in {".md", ".txt"})
-    source_files = [f.name for f in files]
-
-    if not persona:
-        persona = (
-            f"You are a friendly and helpful support agent for {display_name}. "
-            "Answer questions only based on the retrieved context. "
-            "If the information is not in the context, do not guess — escalate to a human."
-        )
-
-    config = {
-        "client": {
-            "name": client_id,
-            "display_name": display_name,
-            "source_files": source_files,
-            "persona": persona,
-            "escalation": {
-                "email": f"support@{client_id}.com",
-                "message": f"Sorry, I can't answer that with confidence. Let me get a human from the {display_name} team to help you out."
-            },
-            "retrieval": {
-                "top_k": 6,
-                "score_threshold": 0.5,
-            },
-        }
-    }
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
-    print(f"  [OK]   Created config/client_{client_id}.yaml")
-
-
-def _copy_content(client_id: str, content_folder: Path):
-    raw_dir = DATA_DIR / client_id / "raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    files = sorted(f for f in content_folder.iterdir() if f.suffix in {".md", ".txt"})
-    for f in files:
-        shutil.copy2(f, raw_dir / f.name)
-        print(f"  [OK]   Copied {f.name}")
-    if not files:
-        print("  [WARN] No .md or .txt files found in content folder")
-
-
-def _generate_widget_snippet(client_id: str, backend_url: str, domain: str):
-    snippet = f'''<!-- Vizara Support Widget for {client_id} (allowed domain: {domain}) -->
+def _generate_widget_snippet(client_id, backend_url, domain, display_name, contact_name):
+    return f'''<!-- Vizara Support Widget for {client_id} (allowed domain: {domain}) -->
 <script
   src="{backend_url.rstrip('/')}/widget/chat-widget.js"
   data-api-url="{backend_url.rstrip('/')}/chat"
   data-client-id="{client_id}"
+  data-brand-name="{display_name}"
+  data-followup-name="{contact_name}"
 ></script>'''
-    return snippet
 
 
 def main():
-    global args
     args = _parse_args()
     client_id = args.get("client_id") or args.get("id")
     domain = args.get("domain") or args.get("allowed_domain")
     content_folder = args.get("content") or args.get("folder")
-    display_name = args.get("name") or client_id.title()
+    display_name = args.get("name") or (client_id.title() if client_id else "")
     persona = args.get("persona")
+    contact_name = args.get("contact_name") or display_name
+    contact_email = args.get("contact_email") or f"support@{domain}" if domain else ""
     backend_url = args.get("backend") or "http://localhost:8000"
 
     if not client_id or not domain or not content_folder:
-        print("Usage: python onboard_client.py client_id=<id> domain=<domain> content=<folder> [name=<Display Name>] [persona=<Custom persona>] [backend=<URL>]")
+        print(
+            "Usage: python onboard_client.py client_id=<id> domain=<domain> "
+            "content=<folder> [name=<Display Name>] [persona=<Custom persona>] "
+            "[contact_name=<Human name>] [contact_email=<email>] [backend=<URL>]"
+        )
+        print("Tip: you can also do all of this from the local dashboard (start-dashboard.bat).")
         sys.exit(1)
 
     content_path = Path(content_folder)
@@ -145,32 +60,68 @@ def main():
         print(f"Error: content folder '{content_folder}' not found")
         sys.exit(1)
 
-    print(f"Onboarding client '{client_id}'...")
-    print(f"  Display name: {display_name}")
-    print(f"  Domain: {domain}")
-    print(f"  Content: {content_path}")
-    if persona:
-        print(f"  Persona: {persona}")
-    print()
+    config_path = CONFIG_DIR / f"client_{client_id}.yaml"
+    if config_path.exists():
+        print(f"Error: {config_path} already exists. Use the dashboard to edit it.")
+        sys.exit(1)
 
-    _add_to_server_py(client_id, domain)
-    _create_client_config(client_id, display_name, content_path, persona)
-    _copy_content(client_id, content_path)
+    files = sorted(
+        path for path in content_path.iterdir() if path.suffix.lower() in {".md", ".txt"}
+    )
+    if not files:
+        print("Error: no .md or .txt files found in the content folder.")
+        sys.exit(1)
 
-    print()
-    print("  Ingesting content into Chroma...")
+    raw_dir = DATA_DIR / client_id / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    for path in files:
+        shutil.copy2(path, raw_dir / path.name)
+        print(f"  [OK]   Copied {path.name}")
+
+    if not persona:
+        persona = (
+            f"You are a friendly and helpful support agent for {display_name}. "
+            "Answer questions only based on the retrieved context. If the information "
+            "is not in the context, do not guess — escalate to a human."
+        )
+
+    config = {
+        "client": {
+            "name": client_id,
+            "display_name": display_name,
+            "domain": domain,
+            "enabled": True,
+            "source_files": [path.name for path in files],
+            "persona": persona,
+            "escalation": {
+                "email": contact_email,
+                "contact_name": contact_name,
+                "message": (
+                    f"Sorry, I can't answer that with confidence. Let me get a human "
+                    f"from the {display_name} team to help you out."
+                ),
+            },
+            "retrieval": {"top_k": 6, "score_threshold": 0.5},
+        }
+    }
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    with open(config_path, "w", encoding="utf-8") as handle:
+        yaml.safe_dump(config, handle, sort_keys=False, allow_unicode=True)
+    print(f"  [OK]   Created {config_path}")
+
+    print("\n  Ingesting content into Chroma...")
     from src.ingest import ingest
+
     ingest(client_id)
 
-    print()
-    print("  Client onboarded successfully!")
-    print()
-    print("  Note: The server must be restarted to pick up the new client.")
-    print()
-    print("  Widget embed snippet:")
-    print()
-    print(_generate_widget_snippet(client_id, backend_url, domain))
-    print()
+    print("\n  Client onboarded successfully.")
+    print("  The public server picks up config changes within 2 seconds (or on restart).")
+    print("\n  Widget embed snippet:\n")
+    print(
+        _generate_widget_snippet(
+            client_id, backend_url, domain, display_name, contact_name
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -1,28 +1,23 @@
-from pathlib import Path
-
-import chromadb
-from chromadb.config import Settings
-
-CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
+from src.vectorstore import get_client
 
 _collections: dict[str, object] = {}
 
 
 def _get_collection(client_id: str):
-    if client_id not in _collections:
-        chroma_client = chromadb.PersistentClient(
-            path=str(CHROMA_DIR),
-            settings=Settings(anonymized_telemetry=False),
-        )
-        collection_name = f"client_{client_id}"
-        try:
-            _collections[client_id] = chroma_client.get_collection(collection_name)
-        except Exception:
-            # No data ingested for this client yet (or collection missing after
-            # a fresh deploy). Return None so the agent escalates cleanly
-            # instead of raising a 500.
-            return None
-    return _collections[client_id]
+    if client_id in _collections:
+        return _collections[client_id]
+
+    collection_name = f"client_{client_id}"
+    try:
+        collection = get_client().get_collection(collection_name)
+    except Exception:
+        # No data ingested for this client yet (or collection missing after
+        # a fresh deploy). Return None so the agent escalates cleanly
+        # instead of raising a 500.
+        return None
+
+    _collections[client_id] = collection
+    return collection
 
 
 def query(client_id: str, text: str, top_k: int = None, score_threshold: float = 0.5) -> list[dict]:

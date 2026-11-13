@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chip, csrf %}
+{% block content %}
+{% set snippet = '<script src="' ~ bot_url ~ '/widget/chat-widget.js" data-api-url="' ~ bot_url ~ '/chat" data-client-id="' ~ client.id ~ '" data-brand-name="' ~ client.display_name ~ '"></script>' %}
+<div class="page-head">
+  <div>
+    <h1>{{ client.display_name }} {{ chip(client.status) }}</h1>
+    <p>{{ client.domain or 'No domain registered' }} · <span class="mono">client_{{ client.id }}</span></p>
+  </div>
+  <div class="actions">
+    <form method="post" action="/clients/{{ client.id }}/status">
+      {{ csrf(csrf_token) }}
+      {% if client.status == 'active' %}
+      <input type="hidden" name="status" value="paused">
+      <button class="btn" type="submit"><svg class="icon"><use href="#i-clock"/></svg>Pause bot</button>
+      {% else %}
+      <input type="hidden" name="status" value="active">
+      <button class="btn" type="submit"><svg class="icon"><use href="#i-play"/></svg>Activate bot</button>
+      {% endif %}
+    </form>
+    <a class="btn" href="/conversations?client={{ client.id }}"><svg class="icon"><use href="#i-msg"/></svg>Conversations</a>
+    <a class="btn primary" href="/billing#new-invoice"><svg class="icon"><use href="#i-card"/></svg>Invoice</a>
+  </div>
+</div>
+
+<div class="tabs">
+  <a class="{{ 'active' if tab == 'overview' else '' }}" href="/clients/{{ client.id }}?tab=overview">Overview</a>
+  <a class="{{ 'active' if tab == 'conversations' else '' }}" href="/clients/{{ client.id }}?tab=conversations">Conversations<span class="count">{{ usage.get('messages', 0) }}</span></a>
+  <a class="{{ 'active' if tab == 'billing' else '' }}" href="/clients/{{ client.id }}?tab=billing">Billing<span class="count">{{ billing.invoices|length }}</span></a>
+  <a class="{{ 'active' if tab == 'content' else '' }}" href="/clients/{{ client.id }}?tab=content">Content<span class="count">{{ content|length }}</span></a>
+  <a class="{{ 'active' if tab == 'settings' else '' }}" href="/clients/{{ client.id }}?tab=settings">Settings</a>
+</div>
+
+{% if tab == 'overview' %}
+<div class="grid stats">
+  <div class="stat"><div class="stat-label">Messages · 30d</div><div class="stat-value">{{ usage.get('messages', 0) }}</div><div class="stat-foot"><span class="delta">customer questions</span></div></div>
+  <div class="stat"><div class="stat-label">Escalated · 30d</div><div class="stat-value">{{ usage.get('escalated', 0) }}</div><div class="stat-foot"><span class="delta">needs a human</span></div></div>
+  <div class="stat"><div class="stat-label">Last active</div><div class="stat-value" style="font-size:19px;padding-top:5px">{{ usage.get('last_active')|date if usage.get('last_active') else '—' }}</div><div class="stat-foot"><span class="delta">local or live data</span></div></div>
+  <div class="stat"><div class="stat-label">Index</div><div class="stat-value">{{ index.chunks }}</div><div class="stat-foot"><span class="delta">{{ index.sources }} source{{ '' if index.sources == 1 else 's' }}{% if index.stale %} · stale{% endif %}</span></div></div>
+</div>
+
+<div class="grid cols-2">
+  <div class="panel">
+    <div class="panel-head"><h2>Configuration</h2><span class="sub">{{ 'enabled' if config.get('enabled', True) else 'paused' }}</span><a class="link right" href="/clients/{{ client.id }}?tab=settings">Edit <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body">
+      <dl class="kv">
+        <dt>Client ID</dt><dd class="mono">{{ client.id }}</dd>
+        <dt>Display name</dt><dd>{{ client.display_name }}</dd>
+        <dt>Allowed domain</dt><dd>{{ client.domain or '—' }}</dd>
+        <dt>Escalation contact</dt><dd>{{ config.get('escalation', {}).get('contact_name') or '—' }}</dd>
+        <dt>Contact email</dt><dd>{{ config.get('escalation', {}).get('email') or '—' }}</dd>
+        <dt>Retrieval</dt><dd>top_k {{ config.get('retrieval', {}).get('top_k', 6) }} · threshold {{ config.get('retrieval', {}).get('score_threshold', 0.55) }}</dd>
+        <dt>Source files</dt><dd>{{ index.sources }} · {{ index.chunks }} chunks</dd>
+        <dt>Last indexed</dt><dd>{{ index.indexed_at|dt if index.indexed_at else 'never' }}</dd>
+      </dl>
+      <div class="divider"></div>
+      <div class="stat-inline">
+        <div><div class="stat-label" style="font-size:9px">Plan</div><div style="margin-top:4px;font-size:11.5px">{{ billing.subscription.plan_name if billing.subscription else 'None' }}</div></div>
+        <div><div class="stat-label" style="font-size:9px">Billing</div><div style="margin-top:4px">{% if billing.subscription %}{{ chip(billing.subscription.status) }}{% else %}<span class="chip gray">—</span>{% endif %}</div></div>
+        <div><div class="stat-label" style="font-size:9px">Period end</div><div class="mono" style="margin-top:4px;font-size:10px">{{ billing.subscription.current_period_end if billing.subscription else '—' }}</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Widget snippet</h2><span class="sub">copy into the client site</span><button class="btn sm right" data-copy="{{ snippet }}"><svg class="icon"><use href="#i-copy"/></svg>Copy</button></div>
+    <div class="panel-body">
+      <div class="code">{{ snippet }}</div>
+      <div class="note" style="margin-top:10px"><svg class="icon"><use href="#i-shield"/></svg><span>The allowed Origin is enforced per client. Set <span class="mono">PUBLIC_BOT_URL</span> in <span class="mono">.env</span> to your deployed backend so this snippet is exact.</span></div>
+      <div class="divider"></div>
+      <div class="section-title">Recent activity</div>
+      {% for item in audit %}
+      <div class="sys-row"><span class="dot blue"></span> {{ item.action.replace('_', ' ') }} <span class="val">{{ item.ts|timeago }}</span></div>
+      {% else %}
+      <div class="empty" style="padding:12px">No changes recorded yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-top:14px">
+  <div class="panel">
+    <div class="panel-head"><h2>Content health</h2><a class="link right" href="/clients/{{ client.id }}?tab=content">Manage <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body">
+      {% for file in content[:6] %}
+      <div class="sys-row"><span class="dot {{ 'green' if file.exists else 'red' }}"></span> {{ file.name }} <span class="val">{{ file.size_kb }} KB</span></div>
+      {% else %}
+      <div class="empty">No source files in this config.</div>
+      {% endfor %}
+      {% if content|length > 6 %}<div class="hint">+ {{ content|length - 6 }} more in Content.</div>{% endif %}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Quick actions</h2></div>
+    <div class="panel-body">
+      <div class="btn-row">
+        <form method="post" action="/clients/{{ client.id }}/reindex">{{ csrf(csrf_token) }}<button class="btn" type="submit"><svg class="icon"><use href="#i-refresh"/></svg>Reindex now</button></form>
+        <a class="btn" href="/clients/{{ client.id }}?tab=content"><svg class="icon"><use href="#i-file"/></svg>Add content</a>
+        <a class="btn" href="/conversations?client={{ client.id }}&scope=escalated"><svg class="icon"><use href="#i-alert"/></svg>View escalations</a>
+        <a class="btn" href="/billing#new-invoice"><svg class="icon"><use href="#i-wallet"/></svg>Create invoice</a>
+      </div>
+      <div class="divider"></div>
+      <div class="note"><svg class="icon"><use href="#i-info"/></svg><span>If the index is stale, the public bot rebuilds it on its next startup. Reindex here to do it immediately in this workspace.</span></div>
+    </div>
+  </div>
+</div>
+
+{% elif tab == 'conversations' %}
+<div class="toolbar">
+  <div class="seg">
+    <a class="{{ 'on' if scope != 'escalated' else '' }}" href="/clients/{{ client.id }}?tab=conversations">All</a>
+    <a class="{{ 'on' if scope == 'escalated' else '' }}" href="/clients/{{ client.id }}?tab=conversations&scope=escalated">Escalated</a>
+  </div>
+  <span class="faint" style="font-size:10.5px">{{ conversation_total }} conversation{{ '' if conversation_total == 1 else 's' }} · last 90 days</span>
+</div>
+<div class="conv-layout">
+  <div class="panel">
+    <div class="panel-body tight">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Time</th><th>Question</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {% for item in conversations %}
+            <tr>
+              <td class="mono">{{ item.timestamp|dt }}</td>
+              <td>{{ item.query[:90] }}{% if item.query|length > 90 %}…{% endif %}</td>
+              <td>{% if item.id in resolved_ids %}<span class="chip green">Resolved</span>{% elif item.escalated %}<span class="chip amber">Escalated</span>{% else %}<span class="chip green">Answered</span>{% endif %}</td>
+              <td><div class="row-actions"><a href="/clients/{{ client.id }}?tab=conversations&scope={{ scope }}&c={{ item.id }}" title="Open"><svg class="icon"><use href="#i-arrow"/></svg></a></div></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4"><div class="empty"><strong>No conversations</strong>No messages for this client in the last 90 days.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    {% if selected %}
+    <div class="panel-head"><h2>Exchange</h2><span class="sub">#{{ selected.id }} · {{ selected.timestamp|timeago }}</span></div>
+    <div class="transcript">
+      <div class="msg user">{{ selected.query }}<time>{{ selected.timestamp|dt }}</time></div>
+      <div class="msg bot">{{ selected.response }}<time>{{ selected.timestamp|dt }}</time></div>
+    </div>
+    <div class="transcript-meta">
+      {% if selected_note %}<span class="chip green">Resolved</span>{% elif selected.escalated %}<span class="chip amber">Escalated</span>{% else %}<span class="chip green">Answered</span>{% endif %}
+      {% if selected.escalation_reason %}<span>{{ selected.escalation_reason }}</span>{% endif %}
+      <span>session {{ selected.session_id[:10] }}…</span>
+    </div>
+    <div class="panel-body" style="border-top:1px solid var(--border-soft)">
+      <form method="post" action="/conversations/{{ selected.id }}/resolve">
+        {{ csrf(csrf_token) }}
+        <input type="hidden" name="next" value="/clients/{{ client.id }}?tab=conversations&scope={{ scope }}&c={{ selected.id }}">
+        <div class="form-field">
+          <label for="note">Resolution note</label>
+          <input class="input" id="note" name="note" maxlength="1000" value="{{ selected_note.note if selected_note and selected_note.note else '' }}" placeholder="Refund handled by email…">
+        </div>
+        <div class="form-actions" style="padding-top:10px">
+          <button class="btn primary" type="submit"><svg class="icon"><use href="#i-check"/></svg>{{ 'Update note' if selected_note else 'Mark resolved' }}</button>
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="empty" style="padding:60px 18px"><strong>Pick an exchange</strong>Select a row to read the full question and answer.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% elif tab == 'billing' %}
+<div class="grid cols-2">
+  <div class="panel">
+    <div class="panel-head"><h2>Subscription</h2><a class="link right" href="/billing">Manage <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body">
+      {% if billing.subscription %}
+      <dl class="kv">
+        <dt>Plan</dt><dd>{{ billing.subscription.plan_name }}</dd>
+        <dt>Amount</dt><dd class="mono">{{ billing.subscription.amount_cents|money }}/{{ billing.subscription.interval }}</dd>
+        <dt>Status</dt><dd>{{ chip(billing.subscription.status) }}</dd>
+        <dt>Started</dt><dd>{{ billing.subscription.started_on }}</dd>
+        <dt>Current period ends</dt><dd class="mono">{{ billing.subscription.current_period_end or '—' }}</dd>
+        <dt>Setup fee</dt><dd class="mono">{{ billing.subscription.setup_fee_cents|money }}</dd>
+      </dl>
+      {% else %}
+      <div class="empty"><strong>No subscription</strong>Create one on the Billing page.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Payment links</h2><span class="sub">hosted checkout</span></div>
+    <div class="panel-body">
+      {% for link in billing.links[:4] %}
+      <div class="sys-row"><span class="dot {{ 'green' if link.status == 'active' else 'gray' }}"></span> {{ link.label }} <span class="val">{{ link.provider }}</span></div>
+      {% else %}
+      <div class="empty" style="padding:12px"><strong>No links yet</strong>Create a hosted checkout link on Billing.</div>
+      {% endfor %}
+      <div class="note" style="margin-top:10px"><svg class="icon"><use href="#i-shield"/></svg><span>Links point to the payment provider. Card data never touches this console.</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:14px">
+  <div class="panel-head"><h2>Invoices</h2><span class="sub">{{ billing.invoices|length }} total</span></div>
+  <div class="panel-body tight">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Number</th><th>Issued</th><th>Due</th><th class="num">Amount</th><th>Status</th><th>Paid</th><th></th></tr></thead>
+        <tbody>
+          {% for invoice in billing.invoices %}
+          <tr>
+            <td class="mono">{{ invoice.number }}</td>
+            <td class="mono">{{ invoice.issued_on }}</td>
+            <td class="mono">{{ invoice.due_on or '—' }}</td>
+            <td class="num">{{ invoice.amount_cents|money }}</td>
+            <td>{{ chip(invoice.effective_status) }}</td>
+            <td class="muted">{{ invoice.paid_on or '—' }}</td>
+            <td><div class="row-actions"><a href="/billing#invoice-{{ invoice.id }}" title="Open in Billing"><svg class="icon"><use href="#i-arrow"/></svg></a></div></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7"><div class="empty">No invoices for this client.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% elif tab == 'content' %}
+<div class="grid cols-2">
+  <div class="panel">
+    <div class="panel-head"><h2>Source files</h2><span class="sub">{{ index.chunks }} chunks · {{ 'fresh' if index.stale == false else ('stale' if index.stale else 'unknown') }}</span></div>
+    <div class="panel-body tight">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>File</th><th class="num">Size</th><th>Modified</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for file in content %}
+            <tr><td class="mono">{{ file.name }}</td><td class="num">{{ file.size_kb }} KB</td><td class="muted">{{ file.modified|dt if file.modified else '—' }}</td><td>{% if file.exists %}<span class="chip green">Present</span>{% else %}<span class="chip red">Missing</span>{% endif %}</td></tr>
+            {% else %}
+            <tr><td colspan="4"><div class="empty"><strong>No sources</strong>Add markdown files to build the index.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="panel-body" style="border-top:1px solid var(--border-soft)">
+        <form method="post" action="/clients/{{ client.id }}/reindex">
+          {{ csrf(csrf_token) }}
+          <button class="btn" type="submit"><svg class="icon"><use href="#i-refresh"/></svg>Reindex {{ index.sources }} source{{ '' if index.sources == 1 else 's' }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Add or replace content</h2><span class="sub">uploads are additive</span></div>
+    <div class="panel-body">
+      <form method="post" action="/clients/{{ client.id }}/content" enctype="multipart/form-data">
+        {{ csrf(csrf_token) }}
+        <div class="form-field">
+          <label for="files">Markdown files</label>
+          <input class="input" id="files" name="files" type="file" accept=".md,.markdown,.txt" multiple required>
+          <div class="hint">New files are added to the source list; same-name files are replaced. Reindex runs automatically.</div>
+        </div>
+        <div class="form-actions" style="padding-top:10px"><button class="btn primary" type="submit"><svg class="icon"><use href="#i-plus"/></svg>Upload &amp; reindex</button></div>
+      </form>
+      <div class="divider"></div>
+      <dl class="kv">
+        <dt>Raw folder</dt><dd class="mono">data/{{ config.get('name', client.id) }}/raw</dd>
+        <dt>Last indexed</dt><dd>{{ index.indexed_at|dt if index.indexed_at else 'never' }}</dd>
+        <dt>Stale check</dt><dd>{% if index.stale is none %}not checked{% elif index.stale %}<span class="chip amber">stale</span>{% else %}<span class="chip green">fresh</span>{% endif %}</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+{% elif tab == 'settings' %}
+<div class="grid cols-2">
+  <div class="panel">
+    <div class="panel-head"><h2>Client settings</h2><span class="sub">writes YAML</span></div>
+    <div class="panel-body">
+      <form method="post" action="/clients/{{ client.id }}/settings">
+        {{ csrf(csrf_token) }}
+        <div class="form-field" style="margin-bottom:12px">
+          <label for="display_name">Display name</label>
+          <input class="input" id="display_name" name="display_name" required maxlength="120" value="{{ config.get('display_name', client.display_name) }}">
+        </div>
+        <div class="form-field" style="margin-bottom:12px">
+          <label for="domain">Allowed domain</label>
+          <input class="input" id="domain" name="domain" value="{{ config.get('domain') or '' }}" placeholder="example.com">
+        </div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="contact_name">Escalation contact</label>
+            <input class="input" id="contact_name" name="contact_name" maxlength="120" value="{{ config.get('escalation', {}).get('contact_name', '') }}">
+          </div>
+          <div class="form-field">
+            <label for="contact_email">Contact email</label>
+            <input class="input" id="contact_email" name="contact_email" type="email" maxlength="254" value="{{ config.get('escalation', {}).get('email', '') }}">
+          </div>
+          <div class="form-field">
+            <label for="top_k">Top K</label>
+            <input class="input" id="top_k" name="top_k" type="number" min="1" max="20" value="{{ config.get('retrieval', {}).get('top_k', 6) }}">
+          </div>
+          <div class="form-field">
+            <label for="score_threshold">Score threshold</label>
+            <input class="input" id="score_threshold" name="score_threshold" type="number" step="0.01" min="0" max="1" value="{{ config.get('retrieval', {}).get('score_threshold', 0.55) }}">
+          </div>
+          <div class="form-field full">
+            <label for="persona">Persona</label>
+            <textarea class="input" id="persona" name="persona" rows="7" maxlength="4000">{{ config.get('persona', '') }}</textarea>
+          </div>
+        </div>
+        <div class="form-actions"><button class="btn primary" type="submit">Save settings</button></div>
+      </form>
+    </div>
+  </div>
+  <div>
+    <div class="panel">
+      <div class="panel-head"><h2>Visibility</h2><span class="sub">public bot gate</span></div>
+      <div class="panel-body">
+        <div class="sys-row"><span class="dot {{ 'green' if client.status == 'active' else 'gray' }}"></span> Current state <span class="val">{{ client.status }}</span></div>
+        <div class="sys-row"><span class="dot blue"></span> Registry <span class="val">{{ 'enabled' if config.get('enabled', True) else 'disabled' }}</span></div>
+        <div class="sys-row"><span class="dot blue"></span> Origin check <span class="val">{{ config.get('domain') or 'not enforced' }}</span></div>
+        <form method="post" action="/clients/{{ client.id }}/status" style="margin-top:14px">
+          {{ csrf(csrf_token) }}
+          {% if client.status == 'active' %}
+          <input type="hidden" name="status" value="paused">
+          <button class="btn danger" type="submit"><svg class="icon"><use href="#i-clock"/></svg>Pause this bot</button>
+          {% else %}
+          <input type="hidden" name="status" value="active">
+          <button class="btn primary" type="submit"><svg class="icon"><use href="#i-play"/></svg>Activate this bot</button>
+          {% endif %}
+        </form>
+        <div class="note" style="margin-top:10px"><svg class="icon"><use href="#i-info"/></svg><span>Pausing updates both the console record and <span class="mono">enabled:</span> in the YAML. The public server rejects disabled clients within 2 seconds.</span></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head"><h2>Config file</h2></div>
+      <div class="panel-body">
+        <div class="code">config/client_{{ client.id }}.yaml</div>
+        <div class="note" style="margin-top:10px"><svg class="icon"><use href="#i-shield"/></svg><span>Changes are local. Deploy the bot repo to make them live on Render.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

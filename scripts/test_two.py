@@ -15,9 +15,13 @@ for i, q in enumerate(queries, 1):
     try:
         resp = httpx.post(
             f"{BASE}/chat",
-            json={"session_id": session_id, "query": q},
+            json={"session_id": session_id, "query": q, "client_id": "vizara"},
             timeout=30,
         )
+        if resp.status_code != 200:
+            print(f"HTTP {resp.status_code}: {resp.text}")
+            print()
+            continue
         data = resp.json()
         print(json.dumps(data, indent=2))
     except Exception as e:

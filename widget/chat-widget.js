@@ -1,8 +1,20 @@
 (function () {
   const scriptTag = document.currentScript;
-  const BACKEND_URL = (scriptTag && scriptTag.getAttribute("data-api-url")) || "http://localhost:8000/chat";
-  const CLIENT_ID = (scriptTag && scriptTag.getAttribute("data-client-id")) || "vizara";
-  const BRAND_NAME = "Vizara Studio";
+
+  function dataAttr(name, fallback) {
+    const value = scriptTag && scriptTag.getAttribute(name);
+    return value && value.trim() ? value.trim() : fallback;
+  }
+
+  const BACKEND_URL = dataAttr("data-api-url", "http://localhost:8000/chat");
+  const CLIENT_ID = dataAttr("data-client-id", "vizara");
+  const BRAND_NAME = dataAttr("data-brand-name", "Vizara Studio");
+  const FOLLOWUP_NAME = dataAttr("data-followup-name", "Wasif");
+  const HEADER_SUB = dataAttr("data-header-sub", "Usually responds in minutes");
+  const GREETING = dataAttr(
+    "data-greeting",
+    "Hi! I'm the " + BRAND_NAME + " support assistant. How can I help you?"
+  );
 
   const VOID_BLACK = "#0a0a0a";
   const NEBULA_PURPLE = "#7c3aed";
@@ -138,15 +150,15 @@
           '<div id="vizara-avatar">' + CHAT_ICON.replace('width="24"', 'width="16"').replace('height="24"', 'height="16"') + '</div>' +
           '<div>' +
             '<div id="vizara-header-label">' + BRAND_NAME + ' support</div>' +
-            '<div id="vizara-header-sub">Usually responds in minutes</div>' +
+            '<div id="vizara-header-sub">' + HEADER_SUB + '</div>' +
           '</div>' +
           '<button id="vizara-close" title="Close">' + CLOSE_ICON + '</button>' +
         '</div>' +
         '<div id="vizara-messages">' +
-          '<div class="vizara-msg vizara-bot">Hi! I can help with questions about ' + BRAND_NAME + "'s video ads and product photography. How can I help you?</div>" +
+          '<div class="vizara-msg vizara-bot">' + GREETING + '</div>' +
         '</div>' +
         '<div id="vizara-input-area">' +
-          '<input id="vizara-input" type="text" placeholder="Type your question..." />' +
+          '<input id="vizara-input" type="text" maxlength="2000" placeholder="Type your question..." />' +
           '<button id="vizara-send" title="Send">' + SEND_ICON + '</button>' +
         '</div>' +
       '</div>' +
@@ -186,10 +198,32 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: SESSION_ID, query: text, client_id: CLIENT_ID }),
       })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
+        .then(function (r) {
+          return r.json()
+            .catch(function () { return {}; })
+            .then(function (data) {
+              return { ok: r.ok, status: r.status, data: data };
+            });
+        })
+        .then(function (res) {
           removeTyping();
-          appendBotMessage(data.answer, data.escalated);
+          if (!res.ok) {
+            var detail = res.data && res.data.detail;
+            // Only surface the friendly rate-limit message. Other API details
+            // (client allowlist / origin errors) are for operators, not visitors.
+            appendBotMessage(
+              res.status === 429 && typeof detail === "string" && detail
+                ? detail
+                : "Sorry, something went wrong. Please try again.",
+              false
+            );
+            return;
+          }
+          var answer = res.data && res.data.answer;
+          appendBotMessage(
+            typeof answer === "string" && answer ? answer : "Sorry, something went wrong. Please try again.",
+            !!(res.data && res.data.escalated)
+          );
         })
         .catch(function () {
           removeTyping();
@@ -216,7 +250,7 @@
       if (escalated) {
         const tag = document.createElement("div");
         tag.className = "vizara-escalated-tag";
-        tag.textContent = "Wasif will follow up";
+        tag.textContent = FOLLOWUP_NAME + " will follow up";
         div.appendChild(tag);
       }
       messages.appendChild(div);

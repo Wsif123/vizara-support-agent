@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>{{ 'Set up' if mode == 'setup' else 'Sign in' }} · Vizara Console</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-mark">
+        <svg class="icon" viewBox="0 0 24 24" style="stroke:#1a1206"><path d="M4 5h4l4 11 4-11h4l-6 15h-4L4 5Z"/></svg>
+      </div>
+      <div><div class="brand-name">vizara</div><span class="brand-sub">operator console</span></div>
+    </div>
+
+    {% if mode == 'setup' %}
+    <h1 class="auth-title">Set your operator password</h1>
+    <p class="auth-sub">This is the only account. It protects client data, API keys, and billing. There is no default password and no password reset by email.</p>
+    {% else %}
+    <h1 class="auth-title">Welcome back</h1>
+    <p class="auth-sub">Sign in to manage clients, conversations, billing, and Groq keys. This console only answers on this PC.</p>
+    {% endif %}
+
+    {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="{{ '/setup' if mode == 'setup' else '/login' }}" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="field">
+        <label for="password">{{ 'Create password' if mode == 'setup' else 'Password' }}</label>
+        <input class="input" id="password" name="password" type="password" required minlength="12" maxlength="200" autofocus autocomplete="{{ 'new-password' if mode == 'setup' else 'current-password' }}">
+        {% if mode == 'setup' %}<div class="hint">At least 12 characters. A passphrase of 3–5 words works well.</div>{% endif %}
+      </div>
+      {% if mode == 'setup' %}
+      <div class="field">
+        <label for="confirm">Confirm password</label>
+        <input class="input" id="confirm" name="confirm" type="password" required minlength="12" maxlength="200" autocomplete="new-password">
+      </div>
+      {% endif %}
+      <button class="btn primary" type="submit">{{ 'Create console' if mode == 'setup' else 'Sign in' }}</button>
+    </form>
+
+    <div class="auth-foot">
+      Local-only by design: binds to <span class="mono">127.0.0.1</span> and rejects other hostnames.
+      Sessions are server-side, cookies are HttpOnly/SameSite=Strict, and every change is audited.
+    </div>
+  </div>
+</div>
+</body>
+</html>

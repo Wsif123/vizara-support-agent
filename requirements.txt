@@ -1,10 +1,33 @@
-fastapi==0.115.0
+fastapi==0.162.5
 uvicorn==0.30.6
 chromadb==0.5.3
 onnxruntime==1.16.3
 numpy==1.26.4
 pyyaml==6.0.2
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 httpx==0.27.2
 pydantic>=2.9.0,<3.0
 psutil>=5.9.0
+
+# Chroma's telemetry stack. FastAPI 0.162 requires a newer opentelemetry-api;
+# these pins keep the SDK/instrumentation aligned so Chroma imports cleanly.
+opentelemetry-api==1.45.2
+opentelemetry-sdk==1.45.2
+opentelemetry-semantic-conventions==0.66b2
+opentelemetry-exporter-otlp-proto-grpc==1.45.2
+opentelemetry-instrumentation==0.66b2
+opentelemetry-instrumentation-asgi==0.66b2
+opentelemetry-instrumentation-fastapi==0.66b2
+
+# Chroma 0.5.3 calls posthog's old positional capture API; posthog 7 raises a
+# TypeError on every event (telemetry is disabled, but the log noise is ugly).
+posthog==3.25.0
+
+# Operator console (local only)
+jinja2==3.1.6
+cryptography==50.0.2
+python-multipart==0.0.33
+
+# Optional: live conversations from Neon/Postgres via DATABASE_URL.
+# Install with: pip install "psycopg[binary]"
+# psycopg[binary]>=3.2

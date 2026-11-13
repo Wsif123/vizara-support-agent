@@ -1,3 +1,6 @@
+import json
+import re
+
 CLASSIFICATION_SYSTEM_PROMPT = """You are a friendly and helpful support agent. Answer questions only based on the retrieved context. If the information is not in the context, do not guess — escalate to a human.
 
 ## Knowledge base context (retrieved from source docs)
@@ -30,12 +33,18 @@ Respond ONLY with valid JSON containing two fields:
 **NEEDS_HUMAN** — The question IS about the client's products/services but needs a human's personal judgment: custom requests beyond standard offerings, pricing edge cases, disputes, or anything the knowledge base doesn't clearly cover. Ask for the customer's email so a human can follow up.
 """
 
+_VALID_CLASSIFICATIONS = ("ANSWERABLE", "OFF_TOPIC", "NEEDS_HUMAN")
+
 
 def build_classification_prompt(user_query: str, history_text: str, context_text: str, persona: str = None) -> tuple[str, str]:
+    system = CLASSIFICATION_SYSTEM_PROMPT.format(context=context_text)
     if persona:
-        system = f"{persona}\n\n## Knowledge base context (retrieved from source docs)\n{context_text}\n\n## Your task\nClassify the user's question into exactly one of three categories and respond accordingly.\n\nRespond ONLY with valid JSON containing two fields:\n- \"classification\": \"ANSWERABLE\", \"OFF_TOPIC\", or \"NEEDS_HUMAN\"\n- \"answer\": your textual response to the customer\n\n## CRITICAL: URL / link rules\n- Never output a URL unless it is VERBATIM present in the knowledge base context above.\n- Never invent URLs, never write placeholders like [insert link], [link], or [here].\n- If someone asks for samples/portfolio/demo and no link exists in context, say \"I don't have a link for that right now\" — don't promise to send one.\n\n## Category definitions — be strict\n\n**ANSWERABLE** — The question is about the client's products/services AND the answer is clearly in the knowledge base context above. Give a direct answer. NEVER ask for email.\n\n**OFF_TOPIC** — The question is about anything the client does NOT offer. Politely decline and redirect to what the client offers. Do NOT ask for contact info. Do NOT escalate.\n\n**NEEDS_HUMAN** — The question IS about the client's products/services but needs a human's personal judgment: custom requests beyond standard offerings, pricing edge cases, disputes, or anything the knowledge base doesn't clearly cover. Ask for the customer's email so a human can follow up."
-    else:
-        system = CLASSIFICATION_SYSTEM_PROMPT.format(context=context_text)
+        # Persona goes first so the client's tone rules win over the generic
+        # opening line, while the shared guardrails stay identical for every
+        # tenant. The old implementation duplicated the whole prompt here and
+        # the two copies could drift apart.
+        system = f"{persona.strip()}\n\n{system}"
+
     if history_text:
         user_prompt = f"{history_text}\n\nUser: {user_query}"
     else:
@@ -43,22 +52,37 @@ def build_classification_prompt(user_query: str, history_text: str, context_text
     return system, user_prompt
 
 
+def _valid_payload(data) -> bool:
+    return isinstance(data, dict) and data.get("classification") in _VALID_CLASSIFICATIONS
+
+
 def parse_classification_response(raw: str) -> dict:
-    import json
+    text = (raw or "").strip()
+
+    # Models occasionally wrap JSON in a markdown fence.
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z0-9_-]*\s*", "", text)
+        text = re.sub(r"\s*```$", "", text).strip()
+
     try:
-        data = json.loads(raw)
-        if data.get("classification") in ("ANSWERABLE", "OFF_TOPIC", "NEEDS_HUMAN"):
+        data = json.loads(text)
+        if _valid_payload(data):
             return data
     except (json.JSONDecodeError, TypeError):
         pass
-    # fallback: try to extract JSON from the response
-    import re
-    match = re.search(r'\{[^{}]*"classification"[^{}]*\}', raw, re.DOTALL)
-    if match:
+
+    # Fall back to the first valid JSON object anywhere in the response. Using
+    # raw_decode handles nested objects and braces inside answer strings, which
+    # the previous regex could not.
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char != "{":
+            continue
         try:
-            data = json.loads(match.group())
-            if data.get("classification") in ("ANSWERABLE", "OFF_TOPIC", "NEEDS_HUMAN"):
-                return data
+            data, _ = decoder.raw_decode(text[index:])
         except json.JSONDecodeError:
-            pass
-    return {"classification": "NEEDS_HUMAN", "answer": raw}
+            continue
+        if _valid_payload(data):
+            return data
+
+    return {"classification": "NEEDS_HUMAN", "answer": text}

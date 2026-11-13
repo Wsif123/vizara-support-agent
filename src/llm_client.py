@@ -1,61 +1,28 @@
-import os
+import time
+
 import httpx
-import itertools
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
+from src import key_store
 
-
-def _load_env():
-    from dotenv import load_dotenv
-    load_dotenv()
+GROQ_API_URL = key_store.GROQ_API_URL
 
 
-# Load .env before resolving model IDs so local overrides work. load_dotenv()
-# does not overwrite already-set process env vars, so Render config wins.
-_load_env()
-
-# Model IDs are overridable via env so a provider deprecation does not require
-# a code change + redeploy. Defaults are the models verified live in Oct 2026.
-# Groq deprecated llama-3.1-8b-instant and Cerebras archived gemma-4-31b.
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-CEREBRAS_MODEL = os.getenv("CEREBRAS_MODEL", "gpt-oss-120b")
+def _error_type(resp: httpx.Response) -> str:
+    """A short, secret-free error label from Groq's response."""
+    try:
+        payload = resp.json()
+        return str(payload.get("error", {}).get("type") or f"HTTP {resp.status_code}")[:80]
+    except Exception:
+        return f"HTTP {resp.status_code}"
 
 
-def _get_groq_keys() -> list[str]:
-    keys_str = os.getenv("GROQ_API_KEYS")
-    if not keys_str:
-        _load_env()
-        keys_str = os.getenv("GROQ_API_KEYS")
-    if not keys_str:
-        fallback = os.getenv("SUPPORT_AGENT_GROQ_API_KEY")
-        if not fallback:
-            _load_env()
-            fallback = os.getenv("SUPPORT_AGENT_GROQ_API_KEY")
-        if fallback:
-            return [fallback]
-        raise RuntimeError("No Groq API keys found — set GROQ_API_KEYS or SUPPORT_AGENT_GROQ_API_KEY")
-    return [k.strip() for k in keys_str.split(",") if k.strip()]
-
-
-def _get_cerebras_key() -> str | None:
-    key = os.getenv("CEREBRAS_API_KEY")
-    if not key:
-        _load_env()
-        key = os.getenv("CEREBRAS_API_KEY")
-    return key if key else None
-
-
-_keys = _get_groq_keys()
-_round_robin = itertools.cycle(range(len(_keys))) if _keys else iter([])
-
-
-def _next_groq_key() -> tuple[int, str]:
-    idx = next(_round_robin)
-    return idx, _keys[idx]
-
-
-def _call_api(url: str, api_key: str, model: str, system_prompt: str, user_message: str, temperature: float) -> str:
+def _call_api(
+    api_key: str,
+    model: str,
+    system_prompt: str,
+    user_message: str,
+    temperature: float,
+) -> tuple[str, dict]:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -68,48 +35,119 @@ def _call_api(url: str, api_key: str, model: str, system_prompt: str, user_messa
         ],
         "temperature": temperature,
     }
-    with httpx.Client(timeout=30) as client:
-        resp = client.post(url, json=payload, headers=headers)
+    with httpx.Client(timeout=45) as client:
+        resp = client.post(GROQ_API_URL, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        return data["choices"][0]["message"]["content"], data.get("usage") or {}
 
 
 def generate(system_prompt: str, user_message: str, temperature: float = 0.3) -> str:
-    attempts = 0
-    last_error = None
+    """Try each Groq key once, in weighted round-robin order.
 
-    # Try each Groq key in round-robin order
-    for _ in range(len(_keys)):
-        idx, key = _next_groq_key()
-        attempts += 1
-        print(f"[llm] attempt {attempts}: Groq key {idx}")
+    Groq is the only provider. A 429 cools that key down and moves on; a
+    401/403 marks it invalid; the dashboard shows both states. No key material
+    is ever written to stdout, logs, or the returned error string.
+    """
+    keys = key_store.select_keys()
+    if not keys:
+        return "[LLM Error] No Groq API key is configured. Add one in the operator console."
+
+    model = key_store.get_groq_model()
+    last_status: int | None = None
+    last_reason = "unknown error"
+    attempts = len(keys)
+
+    for attempt, key in enumerate(keys, start=1):
+        started = time.perf_counter()
+        label = key.get("label") or "Groq key"
+        print(f"[llm] attempt {attempt}/{attempts}: {label}")
         try:
-            result = _call_api(GROQ_API_URL, key, GROQ_MODEL, system_prompt, user_message, temperature)
-            print(f"[llm] attempt {attempts}: success on Groq key {idx}")
-            return result
-        except httpx.HTTPStatusError as e:
-            last_error = e
-            if e.response.status_code == 429:
-                print(f"[llm] attempt {attempts}: Groq key {idx} returned 429 — trying next key")
-                continue
-            print(f"[llm] attempt {attempts}: Groq key {idx} error {e.response.status_code} — trying next key")
-            continue
-        except Exception as e:
-            last_error = e
-            print(f"[llm] attempt {attempts}: Groq key {idx} exception {e} — trying next key")
+            content, usage = _call_api(
+                key["secret"], model, system_prompt, user_message, temperature
+            )
+            latency = int((time.perf_counter() - started) * 1000)
+            key_store.record_result(
+                key,
+                "success",
+                http_status=200,
+                usage=usage,
+                latency_ms=latency,
+                model=model,
+            )
+            print(f"[llm] attempt {attempt}: success on {label}")
+            return content
+
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            last_status = status
+            last_reason = _error_type(exc.response)
+            latency = int((time.perf_counter() - started) * 1000)
+            if status == 429:
+                wait = key_store.retry_after_seconds(exc.response, 60)
+                key_store.record_result(
+                    key,
+                    "429",
+                    http_status=status,
+                    latency_ms=latency,
+                    error_code="rate_limit",
+                    model=model,
+                )
+                key_store.cool_down(key, wait)
+                print(f"[llm] attempt {attempt}: {label} rate-limited; cooling {wait}s")
+            elif status in (401, 403):
+                key_store.record_result(
+                    key,
+                    "invalid",
+                    http_status=status,
+                    latency_ms=latency,
+                    error_code="auth_failed",
+                    model=model,
+                )
+                key_store.invalidate(key)
+                print(f"[llm] attempt {attempt}: {label} rejected — marked invalid")
+            else:
+                key_store.record_result(
+                    key,
+                    "error",
+                    http_status=status,
+                    latency_ms=latency,
+                    error_code=_error_type(exc.response),
+                    model=model,
+                )
+                key_store.cool_down(key, 15)
+                print(f"[llm] attempt {attempt}: {label} returned {status}")
             continue
 
-    # All Groq keys exhausted — try Cerebras fallback
-    cerebras_key = _get_cerebras_key()
-    if cerebras_key:
-        print(f"[llm] all Groq keys exhausted — falling back to Cerebras")
-        try:
-            result = _call_api(CEREBRAS_API_URL, cerebras_key, CEREBRAS_MODEL, system_prompt, user_message, temperature)
-            print(f"[llm] Cerebras fallback succeeded")
-            return result
-        except Exception as e:
-            print(f"[llm] Cerebras fallback also failed: {e}")
-            last_error = e
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            last_reason = type(exc).__name__
+            latency = int((time.perf_counter() - started) * 1000)
+            key_store.record_result(
+                key,
+                "error",
+                latency_ms=latency,
+                error_code=last_reason,
+                model=model,
+            )
+            key_store.cool_down(key, 15)
+            print(f"[llm] attempt {attempt}: {label} network error ({last_reason})")
+            continue
 
-    return f"[LLM Error] All {len(_keys)} Groq keys exhausted" + (f", Cerebras fallback also failed: {last_error}" if cerebras_key else f", no Cerebras key configured: {last_error}")
+        except Exception as exc:
+            last_reason = type(exc).__name__
+            latency = int((time.perf_counter() - started) * 1000)
+            key_store.record_result(
+                key,
+                "error",
+                latency_ms=latency,
+                error_code=last_reason,
+                model=model,
+            )
+            print(f"[llm] attempt {attempt}: {label} unexpected error ({last_reason})")
+            continue
+
+    status_text = f" (last HTTP {last_status})" if last_status else ""
+    return (
+        f"[LLM Error] All {attempts} Groq key(s) failed{status_text}: {last_reason}. "
+        "Check the API keys screen in the operator console."
+    )

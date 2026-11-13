@@ -13,7 +13,7 @@ for i, (q, expected) in enumerate(tests, 1):
     print(f"=== Test {i}: {q} ===")
     print(f"  Expected: {expected}")
     try:
-        resp = httpx.post(f"{BASE}/chat", json={"session_id": sid, "query": q}, timeout=30)
+        resp = httpx.post(f"{BASE}/chat", json={"session_id": sid, "query": q, "client_id": "vizara"}, timeout=30)
         data = resp.json()
         print(json.dumps(data, indent=2))
     except Exception as e:

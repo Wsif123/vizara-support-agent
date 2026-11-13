@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chip, csrf %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Conversations</h1><p>Search transcripts, inspect escalations, and mark follow-ups resolved.</p></div>
+  <div class="actions">
+    <a class="btn" href="/export/conversations.csv?days={{ days }}&client={{ client_filter }}"><svg class="icon"><use href="#i-download"/></svg>Export CSV</a>
+    <a class="btn" href="/conversations?scope=escalated"><svg class="icon"><use href="#i-alert"/></svg>{{ open_escalations }} open escalation{{ '' if open_escalations == 1 else 's' }}</a>
+  </div>
+</div>
+
+<form class="toolbar" method="get" action="/conversations">
+  <div class="search-field"><svg class="icon"><use href="#i-search"/></svg><input class="input" name="q" value="{{ search }}" placeholder="Search questions and answers…"></div>
+  <select class="input" name="client">
+    <option value="">All clients</option>
+    {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if client_filter == c.id else '' }}>{{ c.display_name }}</option>{% endfor %}
+  </select>
+  <select class="input" name="scope">
+    <option value="all" {{ 'selected' if scope != 'escalated' else '' }}>All conversations</option>
+    <option value="escalated" {{ 'selected' if scope == 'escalated' else '' }}>Escalated only</option>
+  </select>
+  <select class="input" name="days">
+    <option value="7" {{ 'selected' if days == 7 else '' }}>Last 7 days</option>
+    <option value="30" {{ 'selected' if days == 30 else '' }}>Last 30 days</option>
+    <option value="90" {{ 'selected' if days == 90 else '' }}>Last 90 days</option>
+    <option value="365" {{ 'selected' if days == 365 else '' }}>All year</option>
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  <div class="right"><span class="faint" style="font-size:10.5px">{{ conversation_total }} result{{ '' if conversation_total == 1 else 's' }}</span></div>
+</form>
+
+<div class="conv-layout">
+  <div class="panel">
+    <div class="panel-body tight">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Time</th><th>Client</th><th>Question</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {% for item in conversations %}
+            <tr>
+              <td class="mono nowrap">{{ item.timestamp|dt }}</td>
+              <td class="muted nowrap">{{ item.client_name }}</td>
+              <td>{{ item.query[:100] }}{% if item.query|length > 100 %}…{% endif %}</td>
+              <td>{% if item.id in resolved_ids %}<span class="chip green">Resolved</span>{% elif item.escalated %}<span class="chip amber">Escalated</span>{% else %}<span class="chip green">Answered</span>{% endif %}</td>
+              <td><div class="row-actions"><a href="/conversations?client={{ client_filter }}&scope={{ scope }}&days={{ days }}&q={{ search|urlencode }}&c={{ item.id }}" title="Open"><svg class="icon"><use href="#i-arrow"/></svg></a></div></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5"><div class="empty"><strong>No conversations found</strong>Try a wider date range or clear the filters.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if conversations %}
+      <div class="panel-body" style="border-top:1px solid var(--border-soft);display:flex;align-items:center;gap:8px">
+        {% if page > 0 %}
+        <a class="btn sm" href="/conversations?client={{ client_filter }}&scope={{ scope }}&days={{ days }}&q={{ search|urlencode }}&page={{ page - 1 }}">Previous</a>
+        {% endif %}
+        {% if has_next %}
+        <a class="btn sm" href="/conversations?client={{ client_filter }}&scope={{ scope }}&days={{ days }}&q={{ search|urlencode }}&page={{ page + 1 }}">Next</a>
+        {% endif %}
+        <span class="faint" style="margin-left:auto;font-size:10px">Page {{ page + 1 }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    {% if selected %}
+    <div class="panel-head">
+      <h2>Exchange</h2>
+      <span class="sub">{{ selected.client_name }} · #{{ selected.id }}</span>
+      {% if selected_note %}<span class="chip green right">Resolved</span>{% endif %}
+    </div>
+    <div class="transcript">
+      <div class="msg user">{{ selected.query }}<time>{{ selected.timestamp|dt }}</time></div>
+      <div class="msg bot">{{ selected.response }}<time>{{ selected.timestamp|dt }}</time></div>
+    </div>
+    <div class="transcript-meta">
+      {% if selected_note %}<span class="chip green">Resolved</span>{% elif selected.escalated %}<span class="chip amber">Escalated</span>{% else %}<span class="chip green">Answered</span>{% endif %}
+      {% if selected.escalation_reason %}<span>{{ selected.escalation_reason }}</span>{% endif %}
+      <span>session {{ selected.session_id[:10] }}…</span>
+      <span>{{ 'live' if source.mode == 'postgres' else 'local' }} data</span>
+    </div>
+    <div class="panel-body" style="border-top:1px solid var(--border-soft)">
+      <form method="post" action="/conversations/{{ selected.id }}/resolve">
+        {{ csrf(csrf_token) }}
+        <input type="hidden" name="next" value="/conversations?client={{ client_filter }}&scope={{ scope }}&days={{ days }}&q={{ search|urlencode }}&c={{ selected.id }}">
+        <div class="form-field">
+          <label for="note">Resolution note</label>
+          <input class="input" id="note" name="note" maxlength="1000" value="{{ selected_note.note if selected_note and selected_note.note else '' }}" placeholder="What did you do? (optional)">
+        </div>
+        <div class="form-actions" style="padding-top:10px">
+          <button class="btn primary" type="submit"><svg class="icon"><use href="#i-check"/></svg>{{ 'Update note' if selected_note else 'Mark resolved' }}</button>
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="empty" style="padding:80px 18px"><strong>Pick a conversation</strong>Select a row to read the question and answer, then mark it resolved.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -3,6 +3,8 @@
 client:
   name: vizara-studio
   display_name: Vizara Studio
+  domain: vizarastudioo.netlify.app
+  enabled: true
 
   # Source file paths (relative to data/<client>/raw/)
   source_files:
@@ -26,6 +28,7 @@ client:
   # Escalation contact
   escalation:
     email: wasif@vizarastudio.com
+    contact_name: Wasif
     message: >
       Sorry, I can't answer that with confidence. Let me get a human from the
       Vizara Studio team to help you out. They'll follow up shortly.

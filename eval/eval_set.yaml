@@ -39,8 +39,8 @@
   must_escalate: false
 
 - question: "Can you build me a full e-commerce website?"
-  expected_keywords: []
-  must_escalate: true
+  expected_keywords: ["video ad", "product photography", "specialize"]
+  must_escalate: false
 
 - question: "What services does Vizara Studio offer?"
   expected_keywords: ["video ad", "product photography"]
@@ -56,4 +56,24 @@
 
 - question: "What orientation should my video ad be?"
   expected_keywords: ["vertical", "square", "horizontal", "9:16", "1:1", "16:9"]
+  must_escalate: false
+
+- question: "How much does the AI chatbot service cost?"
+  expected_keywords: ["$90", "$150"]
+  must_escalate: false
+
+- question: "What does the chatbot service include?"
+  expected_keywords: ["widget", "content", "persona", "brand"]
+  must_escalate: false
+
+- question: "Do you offer a free trial for the chatbot?"
+  expected_keywords: ["no", "does not", "doesn't"]
+  must_escalate: false
+
+- question: "Can the chatbot integrate with WhatsApp?"
+  expected_keywords: ["website widget", "does not", "doesn't"]
+  must_escalate: false
+
+- question: "What happens to my data if I cancel the chatbot subscription?"
+  expected_keywords: ["deleted", "one week", "cancel"]
   must_escalate: false

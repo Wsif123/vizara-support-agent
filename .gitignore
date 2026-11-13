@@ -8,6 +8,13 @@ chroma_db/
 # Logs
 logs/
 
+# Admin dashboard local data (never commit)
+admin/admin.db
+admin/admin.db-wal
+admin/admin.db-shm
+admin/.secret.key
+admin/backups/
+
 # Python
 __pycache__/
 *.pyc

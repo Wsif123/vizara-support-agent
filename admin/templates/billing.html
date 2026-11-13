@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chip, csrf %}
+{% block content %}
+{% set lemon_links = links|selectattr('provider', 'equalto', 'lemonsqueezy')|list %}
+{% set safepay_links = links|selectattr('provider', 'equalto', 'safepay')|list %}
+<div class="page-head">
+  <div><h1>Billing</h1><p>Hosted checkout links, manual reconciliation, and a clean invoice ledger.</p></div>
+  <div class="actions">
+    <a class="btn" href="/export/invoices.csv"><svg class="icon"><use href="#i-download"/></svg>Export</a>
+    <button class="btn" type="button" data-modal-open="linkModal"><svg class="icon"><use href="#i-link"/></svg>New payment link</button>
+    <a class="btn primary" href="#new-invoice"><svg class="icon"><use href="#i-plus"/></svg>New invoice</a>
+  </div>
+</div>
+
+<div class="banner">
+  <svg class="icon"><use href="#i-wallet"/></svg>
+  <span><strong>Hosted checkout mode.</strong> Clients pay on the provider’s page; this console stores the link, the invoice, and the payment status. No card data is collected or stored. Real webhooks can replace manual marking later without changing this ledger.</span>
+</div>
+
+<div class="grid stats">
+  <div class="stat"><div class="stat-label">MRR</div><div class="stat-value">{{ summary.mrr_cents|money }}</div><div class="stat-foot"><span class="delta">{{ summary.active_subs }} active subscription{{ '' if summary.active_subs == 1 else 's' }}</span></div></div>
+  <div class="stat"><div class="stat-label">Collected · {{ today[:7] }}</div><div class="stat-value">{{ summary.collected_cents|money }}</div><div class="stat-foot"><span class="delta up">{{ summary.paid_count }} paid invoice{{ '' if summary.paid_count == 1 else 's' }}</span></div></div>
+  <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-value">{{ summary.outstanding_cents|money }}</div><div class="stat-foot"><span class="delta">{{ summary.outstanding_count }} sent</span></div></div>
+  <div class="stat"><div class="stat-label">Overdue</div><div class="stat-value">{{ summary.overdue_count }}</div><div class="stat-foot"><span class="delta {{ 'down' if summary.overdue_count else '' }}">{{ 'needs follow-up' if summary.overdue_count else 'all clear' }}</span></div></div>
+</div>
+
+<div class="provider-grid" style="margin-bottom:14px">
+  <div class="provider">
+    <h3><svg class="icon"><use href="#i-globe"/></svg>Lemon Squeezy <span class="chip amber">recommended</span></h3>
+    <p>Merchant of record for international cards, subscriptions, invoices, and tax. Payouts to Pakistan bank accounts. Fees: 5% + 50¢, +1.5% international, +0.5% subscription.</p>
+    {% if lemon_links %}<span class="chip green">{{ lemon_links|length }} checkout link{{ '' if lemon_links|length == 1 else 's' }}</span>{% else %}<span class="chip gray">No checkout links yet</span>{% endif %}
+    {% if lemon_url %}<a class="btn sm" href="{{ lemon_url }}" target="_blank" rel="noopener">Open store <svg class="icon"><use href="#i-external"/></svg></a>{% endif %}
+  </div>
+  <div class="provider">
+    <h3><svg class="icon"><use href="#i-zap"/></svg>Safepay <span class="chip blue">local Pakistan</span></h3>
+    <p>Pakistan gateway for local cards, wallets, and bank transfers. Domestic pricing is about 2.9% + Rs 30, +0.3% for international cards. Supports payment links and subscriptions.</p>
+    {% if safepay_links %}<span class="chip green">{{ safepay_links|length }} checkout link{{ '' if safepay_links|length == 1 else 's' }}</span>{% else %}<span class="chip gray">No checkout links yet</span>{% endif %}
+    {% if safepay_url %}<a class="btn sm" href="{{ safepay_url }}" target="_blank" rel="noopener">Open dashboard <svg class="icon"><use href="#i-external"/></svg></a>{% endif %}
+  </div>
+</div>
+
+<div class="panel" style="margin-bottom:14px">
+  <div class="panel-head"><h2>Subscriptions</h2><span class="sub">{{ subscriptions|length }} total</span></div>
+  <div class="panel-body tight">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Client</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Period end</th><th></th></tr></thead>
+        <tbody>
+          {% for sub in subscriptions %}
+          <tr>
+            <td><div class="client-cell"><div class="avatar">{{ sub.display_name|initials }}</div><div><strong>{{ sub.display_name }}</strong><span>client_{{ sub.client_id }}</span></div></div></td>
+            <td class="muted">{{ sub.plan_name }}</td>
+            <td class="num">{{ sub.amount_cents|money }}/{{ sub.interval }}</td>
+            <td>{{ chip(sub.status) }}</td>
+            <td class="mono">{{ sub.current_period_end or '—' }}</td>
+            <td><div class="row-actions"><a href="/clients/{{ sub.client_id }}?tab=billing" title="Client billing"><svg class="icon"><use href="#i-arrow"/></svg></a></div></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6"><div class="empty"><strong>No subscriptions</strong>Create one below, or during client onboarding.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-bottom:14px">
+  <div class="panel-head"><h2>Invoices</h2><span class="sub">manual ledger</span></div>
+  <div class="panel-body tight">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Number</th><th>Client</th><th>Issued</th><th>Due</th><th class="num">Amount</th><th>Status</th><th>Link</th><th></th></tr></thead>
+        <tbody>
+          {% for invoice in invoices %}
+          <tr id="invoice-{{ invoice.id }}">
+            <td class="mono">{{ invoice.number }}</td>
+            <td class="muted">{{ invoice.display_name }}</td>
+            <td class="mono">{{ invoice.issued_on }}</td>
+            <td class="mono">{{ invoice.due_on or '—' }}</td>
+            <td class="num">{{ invoice.amount_cents|money }}</td>
+            <td>{{ chip(invoice.effective_status) }}</td>
+            <td>{% if invoice.payment_url %}<button class="btn sm" data-copy="{{ invoice.payment_url }}"><svg class="icon"><use href="#i-copy"/></svg>Copy link</button>{% else %}<button class="btn sm" data-link-invoice="{{ invoice.id }}" data-number="{{ invoice.number }}" data-client="{{ invoice.client_id }}">Add link</button>{% endif %}</td>
+            <td>
+              <div class="row-actions" style="opacity:1">
+                {% if invoice.status not in ['paid', 'void'] %}
+                <button type="button" title="Record payment" data-pay-invoice="{{ invoice.id }}" data-number="{{ invoice.number }}" data-amount="{{ invoice.amount_cents|money }}"><svg class="icon"><use href="#i-wallet"/></svg></button>
+                {% endif %}
+                {% if invoice.status == 'draft' %}
+                <form class="inline-form" method="post" action="/billing/invoices/{{ invoice.id }}/status">
+                  {{ csrf(csrf_token) }}<input type="hidden" name="action" value="sent">
+                  <button class="icon-btn" type="submit" title="Mark sent" style="width:24px;height:24px;border:0;background:transparent"><svg class="icon"><use href="#i-msg"/></svg></button>
+                </form>
+                {% endif %}
+                {% if invoice.status not in ['paid', 'void'] %}
+                <form class="inline-form" method="post" action="/billing/invoices/{{ invoice.id }}/status" data-confirm="Void {{ invoice.number }}?">
+                  {{ csrf(csrf_token) }}<input type="hidden" name="action" value="void">
+                  <button class="icon-btn" type="submit" title="Void" style="width:24px;height:24px;border:0;background:transparent"><svg class="icon"><use href="#i-x"/></svg></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8"><div class="empty"><strong>No invoices yet</strong>Create the first invoice below.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-bottom:14px">
+  <div class="panel-head"><h2>Payment links</h2><span class="sub">hosted checkout &amp; customer portals</span><button class="btn sm right" type="button" data-modal-open="linkModal">New link</button></div>
+  <div class="panel-body tight">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Label</th><th>Client</th><th>Provider</th><th>Type</th><th>Invoice</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for link in links %}
+          <tr>
+            <td>{{ link.label }}</td>
+            <td class="muted">{{ link.display_name }}</td>
+            <td class="muted">{{ 'Lemon Squeezy' if link.provider == 'lemonsqueezy' else ('Safepay' if link.provider == 'safepay' else 'Other') }}</td>
+            <td class="muted">{{ link.kind }}</td>
+            <td class="mono">{{ link.invoice_number or '—' }}</td>
+            <td>{{ chip('active' if link.status == 'active' else 'void') }}</td>
+            <td>
+              <div class="row-actions" style="opacity:1">
+                <a href="{{ link.url }}" target="_blank" rel="noopener" title="Open checkout"><svg class="icon"><use href="#i-external"/></svg></a>
+                <button type="button" data-copy="{{ link.url }}" title="Copy link"><svg class="icon"><use href="#i-copy"/></svg></button>
+                {% if link.status == 'active' %}
+                <form class="inline-form" method="post" action="/billing/payment-links/{{ link.id }}/archive" data-confirm="Archive this payment link?">
+                  {{ csrf(csrf_token) }}
+                  <button class="icon-btn" type="submit" title="Archive" style="width:24px;height:24px;border:0;background:transparent"><svg class="icon"><use href="#i-x"/></svg></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7"><div class="empty"><strong>No payment links</strong>Paste a hosted checkout URL from Lemon Squeezy or Safepay.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-equal">
+  <details class="panel disclosure" id="new-invoice" style="padding:0 16px 16px">
+    <summary>New invoice</summary>
+    <div class="disclosure-body">
+      <form method="post" action="/billing/invoices">
+        {{ csrf(csrf_token) }}
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="inv_client">Client</label>
+            <select class="input" id="inv_client" name="client_id" required>
+              {% for c in clients %}<option value="{{ c.id }}">{{ c.display_name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="inv_sub">Subscription <span class="faint">(optional)</span></label>
+            <select class="input" id="inv_sub" name="subscription_id">
+              <option value="">Custom amount</option>
+              {% for sub in subscriptions %}<option value="{{ sub.id }}">{{ sub.display_name }} · {{ sub.plan_name }} · {{ sub.amount_cents|money }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="inv_amount">Amount <span class="faint">(if custom)</span></label>
+            <input class="input" id="inv_amount" name="amount" placeholder="90.00">
+          </div>
+          <div class="form-field">
+            <label for="inv_due">Due date</label>
+            <input class="input" id="inv_due" name="due_on" type="date" value="{{ default_due }}">
+          </div>
+          <div class="form-field">
+            <label for="inv_status">Status</label>
+            <select class="input" id="inv_status" name="status"><option value="draft">Draft</option><option value="sent">Sent</option></select>
+          </div>
+          <div class="form-field" style="display:flex;align-items:flex-end">
+            <label class="check"><input type="checkbox" name="include_setup" value="1"> Add one-time setup fee on the first invoice</label>
+          </div>
+          <div class="form-field">
+            <label for="inv_url">Hosted checkout URL <span class="faint">(optional)</span></label>
+            <input class="input" id="inv_url" name="payment_url" placeholder="https://checkout.lemonsqueezy.com/…">
+          </div>
+          <div class="form-field">
+            <label for="inv_provider">Provider</label>
+            <select class="input" id="inv_provider" name="payment_provider">
+              <option value="lemonsqueezy">Lemon Squeezy</option><option value="safepay">Safepay</option><option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-field full">
+            <label for="inv_notes">Notes</label>
+            <input class="input" id="inv_notes" name="notes" maxlength="1000" placeholder="November retainer + setup">
+          </div>
+        </div>
+        <div class="form-actions"><button class="btn primary" type="submit">Create invoice</button></div>
+      </form>
+    </div>
+  </details>
+
+  <details class="panel disclosure" style="padding:0 16px 16px">
+    <summary>Add subscription</summary>
+    <div class="disclosure-body">
+      <form method="post" action="/billing/subscriptions">
+        {{ csrf(csrf_token) }}
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="sub_client">Client</label>
+            <select class="input" id="sub_client" name="client_id" required>
+              {% for c in clients %}<option value="{{ c.id }}">{{ c.display_name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="sub_plan">Plan</label>
+            <select class="input" id="sub_plan" name="plan_id" required>
+              {% for plan in plans %}<option value="{{ plan.id }}">{{ plan.name }} · {{ plan.amount_cents|money }}/{{ plan.interval }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="sub_status">Status</label>
+            <select class="input" id="sub_status" name="status"><option value="active">Active</option><option value="trial">Trial</option><option value="past_due">Past due</option></select>
+          </div>
+          <div class="form-field">
+            <label for="sub_started">Started on</label>
+            <input class="input" id="sub_started" name="started_on" type="date" value="{{ today }}">
+          </div>
+        </div>
+        <div class="form-actions"><button class="btn primary" type="submit">Create subscription</button></div>
+      </form>
+    </div>
+  </details>
+
+  <details class="panel disclosure" style="padding:0 16px 16px">
+    <summary>Add a plan</summary>
+    <div class="disclosure-body">
+      <form method="post" action="/billing/plans">
+        {{ csrf(csrf_token) }}
+        <div class="form-grid">
+          <div class="form-field full">
+            <label for="plan_name">Plan name</label>
+            <input class="input" id="plan_name" name="name" required maxlength="80" placeholder="Chatbot Pro">
+          </div>
+          <div class="form-field">
+            <label for="plan_amount">Monthly price (USD)</label>
+            <input class="input" id="plan_amount" name="amount" required placeholder="190.00">
+          </div>
+          <div class="form-field">
+            <label for="plan_setup">Setup fee (USD)</label>
+            <input class="input" id="plan_setup" name="setup_fee" placeholder="150.00">
+          </div>
+          <div class="form-field">
+            <label for="plan_interval">Interval</label>
+            <select class="input" id="plan_interval" name="interval"><option value="month">Monthly</option><option value="year">Yearly</option></select>
+          </div>
+        </div>
+        <div class="form-actions"><button class="btn primary" type="submit">Add plan</button></div>
+      </form>
+    </div>
+  </details>
+
+  <details class="panel disclosure" style="padding:0 16px 16px">
+    <summary>Payment workflow</summary>
+    <div class="disclosure-body">
+      <ol class="hint" style="padding-left:18px;line-height:1.9;margin:0">
+        <li>Raise the invoice here and attach a hosted checkout URL.</li>
+        <li>Send the invoice / link to the client (copy the link from the table).</li>
+        <li>The provider collects payment and handles tax and receipts.</li>
+        <li>When the money lands, mark the invoice paid. The subscription period extends automatically.</li>
+      </ol>
+      <div class="note" style="margin-top:12px"><svg class="icon"><use href="#i-shield"/></svg><span>No card number, CVV, or bank credential is entered on this page. Use the provider’s hosted page and paste only its public URL.</span></div>
+    </div>
+  </details>
+</div>
+
+<!-- Record payment modal -->
+<div class="modal-backdrop" id="payModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Record payment</h3><button class="icon-btn" type="button" data-modal-close><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <form id="payForm" method="post" action="/billing/invoices/0/paid">
+      {{ csrf(csrf_token) }}
+      <input type="hidden" id="payInvoiceId" value="">
+      <div class="modal-body">
+        <p><strong id="payInvoiceNumber" class="mono"></strong> · <span id="payInvoiceAmount" class="mono"></span></p>
+        <div class="field"><label for="pay_method">Paid via</label><select class="input" id="pay_method" name="method" style="width:100%">{% for method in methods %}<option value="{{ method }}">{{ method|capitalize }}</option>{% endfor %}</select></div>
+        <div class="field" style="margin-bottom:0"><label for="pay_date">Payment date</label><input class="input" id="pay_date" name="paid_on" type="date" value="{{ today }}"></div>
+        <div class="note" style="margin-top:12px"><svg class="icon"><use href="#i-info"/></svg><span>Recording a payment extends the linked subscription by one billing period. It does not charge a card.</span></div>
+      </div>
+      <div class="modal-foot"><button class="btn" type="button" data-modal-close>Cancel</button><button class="btn primary" type="submit">Mark paid</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Payment link modal -->
+<div class="modal-backdrop" id="linkModal">
+  <div class="modal">
+    <div class="modal-head"><h3>New payment link</h3><button class="icon-btn" type="button" data-modal-close><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <form method="post" action="/billing/payment-links">
+      {{ csrf(csrf_token) }}
+      <input type="hidden" id="linkInvoiceId" name="invoice_id" value="">
+      <div class="modal-body">
+        <p>Paste a public checkout or customer-portal URL from Lemon Squeezy or Safepay. The console never handles card data.</p>
+        <div class="field"><label for="linkClientId">Client</label><select class="input" id="linkClientId" name="client_id" style="width:100%" required>{% for c in clients %}<option value="{{ c.id }}">{{ c.display_name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="linkLabel">Label</label><input class="input" id="linkLabel" name="label" maxlength="80" placeholder="Starter plan checkout" required></div>
+        <div class="field"><label for="linkUrl">Public URL</label><input class="input" id="linkUrl" name="url" type="url" maxlength="2048" placeholder="https://checkout.lemonsqueezy.com/…" required></div>
+        <div class="form-grid">
+          <div class="field"><label for="linkProvider">Provider</label><select class="input" id="linkProvider" name="provider" style="width:100%">{% for provider in providers %}<option value="{{ provider }}">{{ 'Lemon Squeezy' if provider == 'lemonsqueezy' else ('Safepay' if provider == 'safepay' else 'Other') }}</option>{% endfor %}</select></div>
+          <div class="field"><label for="linkKind">Type</label><select class="input" id="linkKind" name="kind" style="width:100%"><option value="checkout">Checkout</option><option value="portal">Customer portal</option></select></div>
+        </div>
+        <div class="field" style="margin-bottom:0"><label for="linkAmount">Amount <span class="faint">(optional)</span></label><input class="input" id="linkAmount" name="amount" placeholder="90.00"></div>
+      </div>
+      <div class="modal-foot"><button class="btn" type="button" data-modal-close>Cancel</button><button class="btn primary" type="submit">Save link</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

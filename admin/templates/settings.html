@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chip, csrf %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Settings</h1><p>Local console configuration. Secrets never appear on this page.</p></div>
+  <div class="actions">
+    <form method="post" action="/settings/backup">{{ csrf(csrf_token) }}<button class="btn" type="submit"><svg class="icon"><use href="#i-db"/></svg>Back up now</button></form>
+  </div>
+</div>
+
+{% if not admin %}
+<div class="banner red">
+  <svg class="icon"><use href="#i-alert"/></svg>
+  <span><strong>No operator account.</strong> Open <a class="link" href="/setup">/setup</a> to create the console password.</span>
+</div>
+{% endif %}
+
+<div class="settings-grid">
+  <div class="panel">
+    <div class="panel-head"><h2>Security</h2><span class="sub">server-side sessions</span></div>
+    <div class="panel-body">
+      <dl class="kv">
+        <dt>Bind address</dt><dd class="mono">127.0.0.1:8787</dd>
+        <dt>Session</dt><dd>HttpOnly · SameSite=Strict · idle timeout 12h</dd>
+        <dt>CSRF</dt><dd>Per-session token on every mutation</dd>
+        <dt>Host check</dt><dd>127.0.0.1, localhost, ::1 only</dd>
+        <dt>Security headers</dt><dd>CSP, nosniff, DENY frames, no-referrer</dd>
+        <dt>Password hashing</dt><dd>scrypt (N=16384, r=8, p=1)</dd>
+        <dt>Login throttle</dt><dd>5 attempts / 60s per IP</dd>
+        <dt>Active sessions</dt><dd class="mono">{{ session_count }}</dd>
+      </dl>
+      <div class="divider"></div>
+      <div class="section-title">Change password</div>
+      <form method="post" action="/settings/password" autocomplete="off">
+        {{ csrf(csrf_token) }}
+        <div class="form-field" style="margin-bottom:10px"><label for="current">Current password</label><input class="input" id="current" name="current" type="password" required autocomplete="current-password"></div>
+        <div class="form-field" style="margin-bottom:10px"><label for="new">New password</label><input class="input" id="new" name="new" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></div>
+        <div class="form-field" style="margin-bottom:10px"><label for="confirm">Confirm new password</label><input class="input" id="confirm" name="confirm" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></div>
+        <div class="form-actions" style="padding-top:4px"><button class="btn" type="submit">Update password</button></div>
+      </form>
+      <div class="divider"></div>
+      <form method="post" action="/settings/logout-all" data-confirm="Sign out every other session?">
+        {{ csrf(csrf_token) }}
+        <button class="btn danger" type="submit"><svg class="icon"><use href="#i-logout"/></svg>Sign out other sessions</button>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <div class="panel-head"><h2>Runtime</h2><span class="sub">local + live data</span></div>
+      <div class="panel-body">
+        <div class="sys-row"><span class="dot {{ 'green' if source.ok else 'red' }}"></span> Conversation data <span class="val">{{ source.label }}</span></div>
+        <div class="sys-row" style="padding-top:0"><span class="dot" style="opacity:0"></span> <span class="hint" style="margin:0">{{ source.detail }}</span></div>
+        <div class="sys-row"><span class="dot {{ 'green' if database_url else 'amber' }}"></span> Postgres <span class="val">{{ 'configured' if database_url else 'not configured' }}</span></div>
+        <div class="sys-row"><span class="dot {{ 'green' if render_url else 'amber' }}"></span> Render health <span class="val">{{ render_url or 'RENDER_DEMO_URL not set' }}</span></div>
+        <div class="sys-row"><span class="dot {{ 'green' if formspree else 'amber' }}"></span> Formspree escalation <span class="val">{{ 'configured' if formspree else 'not configured' }}</span></div>
+        <div class="sys-row"><span class="dot blue"></span> Escalation email <span class="val">{{ notify_email or '—' }}</span></div>
+        <div class="sys-row"><span class="dot blue"></span> Groq model <span class="val mono">{{ model }}</span></div>
+        <div class="sys-row"><span class="dot blue"></span> Groq keys <span class="val">{{ key_count }} in pool</span></div>
+        <div class="divider"></div>
+        <div class="section-title">Groq model</div>
+        <form method="post" action="/settings/model">
+          {{ csrf(csrf_token) }}
+          <div class="form-field" style="margin-bottom:10px"><label for="model">Model ID</label><input class="input" id="model" name="model" value="{{ model }}" required maxlength="100"><div class="hint">The public bot reads this setting. Default: <span class="mono">openai/gpt-oss-20b</span>.</div></div>
+          <div class="form-actions" style="padding-top:2px"><button class="btn" type="submit">Save model</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head"><h2>Local files</h2><span class="sub">never committed</span></div>
+      <div class="panel-body">
+        {% for file in files %}
+        <div class="sys-row"><span class="dot {{ 'green' if file.exists else 'amber' }}"></span> {{ file.label }} <span class="val">{{ file.size_kb }} KB</span></div>
+        {% endfor %}
+        <div class="note" style="margin-top:10px"><svg class="icon"><use href="#i-shield"/></svg><span><span class="mono">.gitignore</span> excludes <span class="mono">admin/admin.db</span>, WAL files, <span class="mono">.secret.key</span>, and backups. Keep it that way.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-top:14px">
+  <div class="panel" id="backup">
+    <div class="panel-head"><h2>Backups</h2><span class="sub">{{ backups|length }} recent</span></div>
+    <div class="panel-body tight">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>File</th><th class="num">Size</th><th>Created</th></tr></thead>
+          <tbody>
+            {% for item in backups %}
+            <tr><td class="mono">{{ item.name }}</td><td class="num">{{ item.size_kb }} KB</td><td class="muted">{{ item.modified }}</td></tr>
+            {% else %}
+            <tr><td colspan="3"><div class="empty"><strong>No backups yet</strong>Backups are SQLite snapshots in <span class="mono">admin/backups/</span>. Create one after onboarding clients or changing billing.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>About</h2><span class="sub">v{{ version }}</span></div>
+    <div class="panel-body">
+      <dl class="kv">
+        <dt>Console</dt><dd>Vizara Operator Console</dd>
+        <dt>Scope</dt><dd>Local-only back office. Not customer-facing, never deployed.</dd>
+        <dt>Data</dt><dd>SQLite for console data; bot transcripts stay in the bot database.</dd>
+        <dt>Payments</dt><dd>Hosted checkout links + manual reconciliation. No card data stored.</dd>
+        <dt>LLM</dt><dd>Groq only, weighted key pool with cooldowns.</dd>
+      </dl>
+      <div class="divider"></div>
+      <div class="note"><svg class="icon"><use href="#i-info"/></svg><span>To manage clients, open <a class="link" href="/clients">Clients</a>. To add credits or rotate keys, open <a class="link" href="/keys">API keys</a>. For the payment-provider runway, read <span class="mono">PAYMENTS.md</span> in the repo.</span></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

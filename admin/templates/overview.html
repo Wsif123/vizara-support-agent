@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chip %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Overview</h1>
+    <p>Everything happening across your support bots, in one place.</p>
+  </div>
+  <div class="actions">
+    <div class="seg">
+      <a class="{{ 'on' if days == 7 else '' }}" href="/?days=7">7d</a>
+      <a class="{{ 'on' if days == 30 else '' }}" href="/?days=30">30d</a>
+      <a class="{{ 'on' if days == 90 else '' }}" href="/?days=90">90d</a>
+    </div>
+    <a class="btn" href="/export/conversations.csv?days={{ days }}"><svg class="icon"><use href="#i-download"/></svg>Export</a>
+  </div>
+</div>
+
+<div class="grid stats">
+  <div class="stat">
+    <div class="stat-label">Active clients</div>
+    <div class="stat-value">{{ active_clients }}</div>
+    <div class="stat-foot"><span class="delta">{{ clients|length }} configured · {{ pool.total }} key{{ '' if pool.total == 1 else 's' }}</span></div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Messages · {{ days }} days</div>
+    <div class="stat-value">{{ "{:,}".format(stats.messages) }}</div>
+    <div class="stat-foot"><span class="delta">{{ stats.sessions }} session{{ '' if stats.sessions == 1 else 's' }}</span></div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Escalation rate</div>
+    <div class="stat-value">{{ stats.escalation_rate }}%</div>
+    <div class="stat-foot"><span class="delta {{ 'down' if stats.escalation_rate > 10 else 'up' }}">{{ stats.escalated }} escalated</span></div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Monthly recurring</div>
+    <div class="stat-value">{{ mrr|money }}</div>
+    <div class="stat-foot"><span class="delta">manual ledger · <a class="link" href="/billing">Billing</a></span></div>
+  </div>
+</div>
+
+{% if not has_activity %}
+<div class="banner blue">
+  <svg class="icon"><use href="#i-info"/></svg>
+  <span><strong>No conversations in this period.</strong> The chart fills in as visitors use a bot. If you expected live Render traffic, set <span class="mono">DATABASE_URL</span> in <span class="mono">.env</span> to a shared Postgres database.</span>
+</div>
+{% endif %}
+
+<div class="grid cols-2" style="margin-bottom:14px">
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Messages per day</h2><span class="sub">last {{ days }} days</span>
+      <div class="right"><div class="legend"><span><i></i>messages</span></div></div>
+    </div>
+    <div class="chart-wrap">
+      <svg class="chart" viewBox="0 0 {{ chart.width }} 220" role="img" aria-label="Messages per day">
+        <defs>
+          <linearGradient id="areaGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#f2a33c" stop-opacity=".16"/>
+            <stop offset="1" stop-color="#f2a33c" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g stroke="#1a1d21" stroke-width="1">
+          <line x1="0" y1="40" x2="720" y2="40"/><line x1="0" y1="80" x2="720" y2="80"/>
+          <line x1="0" y1="120" x2="720" y2="120"/><line x1="0" y1="160" x2="720" y2="160"/>
+        </g>
+        <path d="{{ chart.area }}" fill="url(#areaGrad)"/>
+        <polyline points="{{ chart.points }}" fill="none" stroke="#f2a33c" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="0" y1="{{ chart.base }}" x2="720" y2="{{ chart.base }}" stroke="#22252a"/>
+        {% for label in chart.labels %}
+        <text x="{{ label.x }}" y="212" fill="#5d636b" font-family="ui-monospace,monospace" font-size="9" text-anchor="{{ 'start' if loop.first else ('end' if loop.last else 'middle') }}">{{ label.label }}</text>
+        {% endfor %}
+        <text x="0" y="20" fill="#5d636b" font-family="ui-monospace,monospace" font-size="9">max {{ chart.max }}</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Groq key pool</h2><span class="sub">weighted round-robin</span><a class="link right" href="/keys">Manage <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body">
+      {% if key_pool.key_list %}
+        {% for key in key_pool.key_list[:4] %}
+        <div class="key-row">
+          <div class="key-meta">
+            <span class="dot {{ 'green' if key.display_status == 'active' else ('red' if key.display_status == 'invalid' else 'amber') }}"></span>
+            <strong>{{ key.label }}</strong><span class="mono">{{ key.masked }}</span>
+          </div>
+          <div class="bar"><span class="{{ 'red' if key.display_status == 'invalid' else '' }}" style="width:{{ key.load_pct }}%"></span></div>
+          <div class="key-pct">{{ key.load_pct }}%</div>
+        </div>
+        {% endfor %}
+        <div class="key-foot"><span>{{ key_pool.active }} active · {{ key_pool.issues }} issue{{ '' if key_pool.issues == 1 else 's' }}</span><span>8.0k TPM each</span></div>
+        <div class="key-totals">
+          <div><div class="stat-label" style="font-size:9px">Requests</div><div class="mono" style="font-size:16px;margin-top:3px">{{ "{:,}".format(key_pool.requests_today) }}</div></div>
+          <div><div class="stat-label" style="font-size:9px">Tokens</div><div class="mono" style="font-size:16px;margin-top:3px">{{ "{:,}".format(key_pool.tokens_today) }}</div></div>
+          <div><div class="stat-label" style="font-size:9px">429s</div><div class="mono" style="font-size:16px;margin-top:3px">{{ key_pool.r429 }}</div></div>
+        </div>
+      {% else %}
+        <div class="empty"><strong>No Groq keys yet</strong>Add the key that runs your bot.<br><br><a class="btn primary" href="/keys">Add API key</a></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-bottom:14px">
+  <div class="panel">
+    <div class="panel-head"><h2>Client leaderboard</h2><span class="sub">{{ days }}-day messages</span><a class="link right" href="/clients">All clients <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body tight">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Client</th><th class="num">Messages</th><th class="num">Escalated</th><th>Last active</th><th></th></tr></thead>
+          <tbody>
+            {% for client in leaderboard %}
+            <tr>
+              <td><div class="client-cell"><div class="avatar">{{ client.display_name|initials }}</div><div><strong>{{ client.display_name }}</strong><span>{{ client.domain or 'no domain' }}</span></div></div></td>
+              <td class="num">{{ client.usage.get('messages', 0) }}</td>
+              <td class="num">{{ client.usage.get('escalated', 0) }}</td>
+              <td class="muted">{{ client.usage.get('last_active')|date if client.usage.get('last_active') else '—' }}</td>
+              <td><div class="row-actions"><a title="Open" href="/clients/{{ client.id }}"><svg class="icon"><use href="#i-arrow"/></svg></a></div></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5"><div class="empty">No clients configured.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Recent escalations</h2><span class="chip amber" style="margin-left:auto">{{ open_escalations }} open</span></div>
+    <div class="panel-body">
+      {% for item in escalations %}
+      <div class="esc-row">
+        <div class="esc-dot"><svg class="icon"><use href="#i-alert"/></svg></div>
+        <div class="esc-main"><strong>{{ item.client_name }} · {{ item.escalation_reason or 'needs human' }}</strong><span>{{ item.query }}</span></div>
+        <div class="esc-time">{{ item.timestamp|timeago }}<br>{{ chip('resolved' if item.resolved else 'open') }}</div>
+      </div>
+      {% else %}
+      <div class="empty"><strong>No escalations</strong>The bot is answering on its own.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-2">
+  <div class="panel">
+    <div class="panel-head"><h2>Top questions</h2><span class="sub">last {{ days }} days</span><a class="link right" href="/conversations">Explore <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body" style="padding-top:8px;padding-bottom:8px">
+      {% for question in stats.top_questions %}
+      <div class="q-row">
+        <span class="q-text">{{ question.text }}</span><span class="q-count">{{ question.count }}</span>
+        <div class="q-bar"><span style="width:{{ (question.count / (stats.top_questions[0].count or 1) * 100)|round(0) }}%"></span></div>
+      </div>
+      {% else %}
+      <div class="empty">Questions will appear once the bot has traffic.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>System</h2><span class="sub">local</span><a class="link right" href="/settings">Settings <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body" style="padding-top:8px;padding-bottom:8px">
+      <div class="sys-row"><span class="dot green"></span> Local dashboard <span class="val">127.0.0.1:8787</span></div>
+      <div class="sys-row"><span class="dot {{ 'green' if source.ok else 'red' }}"></span> {{ source.label }} <span class="val">{{ source.detail }}</span></div>
+      {% for file in files[:2] %}
+      <div class="sys-row"><span class="dot {{ 'green' if file.exists else 'amber' }}"></span> {{ file.label }} <span class="val">{{ file.size_kb }} KB</span></div>
+      {% endfor %}
+      {% for item in index_rows %}
+      <div class="sys-row"><span class="dot {{ 'green' if item.chunks and not item.stale else 'amber' }}"></span> {{ item.client_name }} index <span class="val">{{ item.chunks }} chunks{% if item.stale %} · stale{% endif %}</span></div>
+      {% endfor %}
+      {% if render %}
+      <div class="sys-row"><span class="dot {{ 'green' if render.ok else 'red' }}"></span> Render demo <span class="val">{{ render.status or 'unreachable' }}{% if render.latency_ms %} · {{ render.latency_ms }} ms{% endif %}</span></div>
+      {% else %}
+      <div class="sys-row"><span class="dot"></span> Render demo <span class="val">set RENDER_DEMO_URL</span></div>
+      {% endif %}
+      <div class="sys-row"><span class="dot blue"></span> Model <span class="val">{{ model }}</span></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

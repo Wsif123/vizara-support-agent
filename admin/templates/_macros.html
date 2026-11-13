@@ -1,0 +1,6 @@
+{% macro chip(status) -%}
+<span class="chip {{ status|status_class }}"><span class="dot {{ status|status_class }}"></span>{{ status|status_label }}</span>
+{%- endmacro %}
+{% macro csrf(token) -%}
+<input type="hidden" name="csrf_token" value="{{ token }}">
+{%- endmacro %}

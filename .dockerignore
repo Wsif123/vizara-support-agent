@@ -9,3 +9,14 @@ data/**/processed/
 chroma_db/
 .DS_Store
 Thumbs.db
+
+# The operator console is local-only and must never enter the public image.
+# Excluding the whole folder also keeps admin.db, .secret.key, and backups out.
+admin/
+
+# Secrets and personal artifacts
+scratch pad.txt
+client_secret_*.json
+*.credentials.json
+.env.*
+!.env.example

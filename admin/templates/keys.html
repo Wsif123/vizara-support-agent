@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chip, csrf %}
+{% block content %}
+<div class="page-head">
+  <div><h1>API keys</h1><p>Encrypted, masked, health-checked, and load-balanced across Groq keys.</p></div>
+  <div class="actions">
+    <button class="btn primary" type="button" data-modal-open="keyModal"><svg class="icon"><use href="#i-plus"/></svg>Add key</button>
+  </div>
+</div>
+
+<div class="banner">
+  <svg class="icon"><use href="#i-shield"/></svg>
+  <span><strong>Groq only.</strong> Keys are encrypted at rest with <span class="mono">admin/.secret.key</span>, never rendered in full, and never written to logs. Requests use weighted round-robin; a rate-limited key cools down automatically and retries move to the next key.</span>
+</div>
+
+<div class="grid stats">
+  <div class="stat"><div class="stat-label">Keys</div><div class="stat-value">{{ pool.total }}</div><div class="stat-foot"><span class="delta">{{ pool.active }} active · {{ pool.issues }} issue{{ '' if pool.issues == 1 else 's' }}</span></div></div>
+  <div class="stat"><div class="stat-label">Requests today</div><div class="stat-value">{{ "{:,}".format(pool.requests_today) }}</div><div class="stat-foot"><span class="delta">across all keys</span></div></div>
+  <div class="stat"><div class="stat-label">Tokens today</div><div class="stat-value">{{ "{:,}".format(pool.tokens_today) }}</div><div class="stat-foot"><span class="delta">prompt + completion</span></div></div>
+  <div class="stat"><div class="stat-label">429s today</div><div class="stat-value">{{ pool.r429 }}</div><div class="stat-foot"><span class="delta {{ 'down' if pool.r429 else 'up' }}">{{ 'rate limits hit' if pool.r429 else 'no rate limits' }}</span></div></div>
+</div>
+
+<div class="key-cards">
+  {% for key in keys %}
+  <div class="panel key-card">
+    <div class="key-card-top">
+      <div class="avatar">{{ key.label|initials }}</div>
+      <div>
+        <h3>{{ key.label }}</h3>
+        <p>{{ key.masked }}</p>
+      </div>
+      {{ chip(key.display_status) }}
+    </div>
+    <div class="gauge"><span class="{{ 'red' if key.display_status == 'invalid' else ('blue' if key.display_status == 'cooldown' else '') }}" style="width:{{ key.tpm_pct }}%"></span></div>
+    <div class="key-card-foot">
+      <span>TPM <strong>{{ key.tpm_pct }}%</strong></span>
+      <span>daily <strong>{{ key.daily_pct }}%</strong></span>
+      <span>share <strong>{{ key.load_pct }}%</strong></span>
+    </div>
+    <div class="divider"></div>
+    <dl class="kv" style="grid-template-columns:110px minmax(0,1fr);font-size:10.5px">
+      <dt>Requests today</dt><dd class="mono">{{ key.requests_today }}</dd>
+      <dt>Tokens today</dt><dd class="mono">{{ "{:,}".format(key.tokens_today) }}</dd>
+      <dt>Tokens last min</dt><dd class="mono">{{ "{:,}".format(key.tokens_last_min) }}</dd>
+      <dt>Weight</dt><dd class="mono">{{ key.weight }}</dd>
+      <dt>Last used</dt><dd>{{ key.last_used_at|timeago if key.last_used_at else 'never' }}</dd>
+      <dt>Last checked</dt><dd>{{ key.last_checked_at|timeago if key.last_checked_at else 'never' }}</dd>
+      {% if key.cooling_seconds %}
+      <dt>Cooling for</dt><dd class="mono">{{ key.cooling_seconds }}s</dd>
+      {% endif %}
+    </dl>
+    <div class="btn-row" style="margin-top:12px">
+      <form class="inline-form" method="post" action="/keys/{{ key.id }}/test">{{ csrf(csrf_token) }}<button class="btn sm" type="submit"><svg class="icon"><use href="#i-zap"/></svg>Test</button></form>
+      <form class="inline-form" method="post" action="/keys/{{ key.id }}/toggle">{{ csrf(csrf_token) }}<button class="btn sm" type="submit">{{ 'Disable' if key.status != 'disabled' else 'Enable' }}</button></form>
+      <form class="inline-form" method="post" action="/keys/{{ key.id }}/weight">
+        {{ csrf(csrf_token) }}
+        <input class="input" name="weight" type="number" min="1" max="10" value="{{ key.weight }}" style="width:52px;height:26px;font-size:10.5px">
+        <button class="btn sm" type="submit">Weight</button>
+      </form>
+      <form class="inline-form" method="post" action="/keys/{{ key.id }}/delete" data-confirm="Delete {{ key.label }}? This cannot be undone.">
+        {{ csrf(csrf_token) }}
+        <input class="input" name="confirm" placeholder="DELETE" style="width:66px;height:26px;font-size:10.5px" required>
+        <button class="btn sm danger" type="submit"><svg class="icon"><use href="#i-trash"/></svg></button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="panel" style="grid-column:1/-1">
+    <div class="empty" style="padding:50px 18px"><strong>No Groq keys stored yet</strong>Add a key to start routing requests. Existing environment keys are imported automatically on first run.<br><br><button class="btn primary" type="button" data-modal-open="keyModal">Add API key</button></div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid cols-2">
+  <div class="panel">
+    <div class="panel-head"><h2>How routing works</h2><span class="sub">fair and failure-aware</span></div>
+    <div class="panel-body">
+      <div class="sys-row"><span class="dot blue"></span> Selection <span class="val">weighted round-robin</span></div>
+      <div class="sys-row"><span class="dot blue"></span> Weight range <span class="val">1–10 per key</span></div>
+      <div class="sys-row"><span class="dot amber"></span> HTTP 429 <span class="val">cool down per Retry-After</span></div>
+      <div class="sys-row"><span class="dot red"></span> HTTP 401/403 <span class="val">marked invalid</span></div>
+      <div class="sys-row"><span class="dot green"></span> Success <span class="val">usage recorded, cooldown cleared</span></div>
+      <div class="note" style="margin-top:12px"><svg class="icon"><use href="#i-info"/></svg><span>The public bot reads the same encrypted pool. If the admin database is unavailable (for example on Render), it falls back to <span class="mono">GROQ_API_KEYS</span> / <span class="mono">SUPPORT_AGENT_GROQ_API_KEY</span>.</span></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Configuration</h2><span class="sub">local console</span><a class="link right" href="/settings">Settings <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+    <div class="panel-body">
+      <dl class="kv">
+        <dt>Model</dt><dd class="mono">{{ model }}</dd>
+        <dt>Key source</dt><dd>{{ source }}</dd>
+        <dt>Provider</dt><dd>Groq (api.groq.com)</dd>
+        <dt>Free tier</dt><dd>1,000 requests/day · 8,000 TPM per key</dd>
+        <dt>Paid keys</dt><dd>Add more keys to raise the ceiling — no code change needed.</dd>
+      </dl>
+      <div class="divider"></div>
+      <p class="hint" style="margin:0">Cerebras has been removed. All generation goes through Groq. Model IDs can be changed in Settings without editing code.</p>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:14px">
+  <div class="panel-head"><h2>Recent key events</h2><span class="sub">last 20 requests</span></div>
+  <div class="panel-body tight">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Time</th><th>Key</th><th>Model</th><th>Status</th><th class="num">HTTP</th><th class="num">Tokens</th><th class="num">Latency</th><th>Error</th></tr></thead>
+        <tbody>
+          {% for row in usage_rows %}
+          <tr>
+            <td class="mono nowrap">{{ row.ts|dt }}</td>
+            <td>{{ row.label }}</td>
+            <td class="mono">{{ row.model or '—' }}</td>
+            <td>{{ chip(row.status) }}</td>
+            <td class="num">{{ row.http_status or '—' }}</td>
+            <td class="num">{{ row.total_tokens }}</td>
+            <td class="num">{{ (row.latency_ms ~ ' ms') if row.latency_ms is not none else '—' }}</td>
+            <td class="muted">{{ row.error_code or '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8"><div class="empty">No key activity yet. Send a message through a bot to populate usage.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="keyModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Add Groq API key</h3><button class="icon-btn" type="button" data-modal-close><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <form method="post" action="/keys" autocomplete="off">
+      {{ csrf(csrf_token) }}
+      <div class="modal-body">
+        <p>The key is validated against Groq, encrypted, and then only shown masked. Get one at <span class="mono">console.groq.com/keys</span>.</p>
+        <div class="field"><label for="key_label">Label</label><input class="input" id="key_label" name="label" maxlength="60" placeholder="Groq — main" required></div>
+        <div class="field"><label for="key_secret">Secret key</label><input class="input" id="key_secret" name="secret" type="password" placeholder="gsk_…" required autocomplete="off"></div>
+        <div class="field" style="margin-bottom:0"><label for="key_weight">Weight <span class="faint">(1–10)</span></label><input class="input" id="key_weight" name="weight" type="number" min="1" max="10" value="1"></div>
+        <div class="note" style="margin-top:12px"><svg class="icon"><use href="#i-shield"/></svg><span>The full key is never displayed again, never logged, and never included in exports.</span></div>
+      </div>
+      <div class="modal-foot"><button class="btn" type="button" data-modal-close>Cancel</button><button class="btn primary" type="submit">Validate &amp; save</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
