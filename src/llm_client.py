@@ -7,6 +7,10 @@ from src import key_store
 GROQ_API_URL = key_store.GROQ_API_URL
 
 
+class LLMUnavailable(RuntimeError):
+    pass
+
+
 def _error_type(resp: httpx.Response) -> str:
     """A short, secret-free error label from Groq's response."""
     try:
@@ -46,108 +50,111 @@ def generate(system_prompt: str, user_message: str, temperature: float = 0.3) ->
     """Try each Groq key once, in weighted round-robin order.
 
     Groq is the only provider. A 429 cools that key down and moves on; a
-    401/403 marks it invalid; the dashboard shows both states. No key material
-    is ever written to stdout, logs, or the returned error string.
+    401/403 marks it invalid; the dashboard shows both states. If every key is
+    cooling, wait briefly and re-check up to three times. No key material is
+    ever written to stdout, logs, or the returned error string.
     """
-    keys = key_store.select_keys()
-    if not keys:
-        return "[LLM Error] No Groq API key is configured. Add one in the operator console."
-
     model = key_store.get_groq_model()
-    last_status: int | None = None
     last_reason = "unknown error"
-    attempts = len(keys)
 
-    for attempt, key in enumerate(keys, start=1):
-        started = time.perf_counter()
-        label = key.get("label") or "Groq key"
-        print(f"[llm] attempt {attempt}/{attempts}: {label}")
-        try:
-            content, usage = _call_api(
-                key["secret"], model, system_prompt, user_message, temperature
-            )
-            latency = int((time.perf_counter() - started) * 1000)
-            key_store.record_result(
-                key,
-                "success",
-                http_status=200,
-                usage=usage,
-                latency_ms=latency,
-                model=model,
-            )
-            print(f"[llm] attempt {attempt}: success on {label}")
-            return content
+    for _round in range(3):
+        keys = key_store.select_keys()
+        if not keys:
+            remaining = key_store.shortest_cooldown()
+            if remaining is None:
+                raise LLMUnavailable("no keys configured")
+            last_reason = "keys remained in cooldown"
+            time.sleep(min(remaining + 0.25, 8.0))
+            continue
 
-        except httpx.HTTPStatusError as exc:
-            status = exc.response.status_code
-            last_status = status
-            last_reason = _error_type(exc.response)
-            latency = int((time.perf_counter() - started) * 1000)
-            if status == 429:
-                wait = key_store.retry_after_seconds(exc.response, 60)
+        attempts = len(keys)
+        for attempt, key in enumerate(keys, start=1):
+            started = time.perf_counter()
+            label = key.get("label") or "Groq key"
+            print(f"[llm] attempt {attempt}/{attempts}: {label}")
+            try:
+                content, usage = _call_api(
+                    key["secret"], model, system_prompt, user_message, temperature
+                )
+                latency = int((time.perf_counter() - started) * 1000)
                 key_store.record_result(
                     key,
-                    "429",
-                    http_status=status,
+                    "success",
+                    http_status=200,
+                    usage=usage,
                     latency_ms=latency,
-                    error_code="rate_limit",
                     model=model,
                 )
-                key_store.cool_down(key, wait)
-                print(f"[llm] attempt {attempt}: {label} rate-limited; cooling {wait}s")
-            elif status in (401, 403):
-                key_store.record_result(
-                    key,
-                    "invalid",
-                    http_status=status,
-                    latency_ms=latency,
-                    error_code="auth_failed",
-                    model=model,
-                )
-                key_store.invalidate(key)
-                print(f"[llm] attempt {attempt}: {label} rejected — marked invalid")
-            else:
+                print(f"[llm] attempt {attempt}: success on {label}")
+                return content
+
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                last_reason = _error_type(exc.response)
+                latency = int((time.perf_counter() - started) * 1000)
+                if status == 429:
+                    wait = key_store.retry_after_seconds(exc.response, 60)
+                    key_store.record_result(
+                        key,
+                        "429",
+                        http_status=status,
+                        latency_ms=latency,
+                        error_code="rate_limit",
+                        model=model,
+                    )
+                    key_store.cool_down(key, wait)
+                    print(f"[llm] attempt {attempt}: {label} rate-limited; cooling {wait}s")
+                elif status in (401, 403):
+                    key_store.record_result(
+                        key,
+                        "invalid",
+                        http_status=status,
+                        latency_ms=latency,
+                        error_code="auth_failed",
+                        model=model,
+                    )
+                    key_store.invalidate(key)
+                    print(f"[llm] attempt {attempt}: {label} rejected — marked invalid")
+                else:
+                    key_store.record_result(
+                        key,
+                        "error",
+                        http_status=status,
+                        latency_ms=latency,
+                        error_code=_error_type(exc.response),
+                        model=model,
+                    )
+                    key_store.cool_down(key, 15)
+                    print(f"[llm] attempt {attempt}: {label} returned {status}")
+                continue
+
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_reason = type(exc).__name__
+                latency = int((time.perf_counter() - started) * 1000)
                 key_store.record_result(
                     key,
                     "error",
-                    http_status=status,
                     latency_ms=latency,
-                    error_code=_error_type(exc.response),
+                    error_code=last_reason,
                     model=model,
                 )
                 key_store.cool_down(key, 15)
-                print(f"[llm] attempt {attempt}: {label} returned {status}")
-            continue
+                print(f"[llm] attempt {attempt}: {label} network error ({last_reason})")
+                continue
 
-        except (httpx.TimeoutException, httpx.TransportError) as exc:
-            last_reason = type(exc).__name__
-            latency = int((time.perf_counter() - started) * 1000)
-            key_store.record_result(
-                key,
-                "error",
-                latency_ms=latency,
-                error_code=last_reason,
-                model=model,
-            )
-            key_store.cool_down(key, 15)
-            print(f"[llm] attempt {attempt}: {label} network error ({last_reason})")
-            continue
+            except Exception as exc:
+                last_reason = type(exc).__name__
+                latency = int((time.perf_counter() - started) * 1000)
+                key_store.record_result(
+                    key,
+                    "error",
+                    latency_ms=latency,
+                    error_code=last_reason,
+                    model=model,
+                )
+                print(f"[llm] attempt {attempt}: {label} unexpected error ({last_reason})")
+                continue
 
-        except Exception as exc:
-            last_reason = type(exc).__name__
-            latency = int((time.perf_counter() - started) * 1000)
-            key_store.record_result(
-                key,
-                "error",
-                latency_ms=latency,
-                error_code=last_reason,
-                model=model,
-            )
-            print(f"[llm] attempt {attempt}: {label} unexpected error ({last_reason})")
-            continue
+        raise LLMUnavailable(f"all keys failed, last={last_reason}")
 
-    status_text = f" (last HTTP {last_status})" if last_status else ""
-    return (
-        f"[LLM Error] All {attempts} Groq key(s) failed{status_text}: {last_reason}. "
-        "Check the API keys screen in the operator console."
-    )
+    raise LLMUnavailable(f"all keys failed, last={last_reason}")

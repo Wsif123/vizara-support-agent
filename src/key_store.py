@@ -34,6 +34,7 @@ DEFAULT_MODEL = "openai/gpt-oss-20b"
 _lock = threading.Lock()
 _rr_pos = 0
 _secret_cache: bytes | None = None
+_env_cooldowns: dict[str, float] = {}  # marker -> unix deadline
 
 
 def now_iso() -> str:
@@ -91,6 +92,25 @@ def _env_keys() -> list[dict]:
         }
         for i, value in enumerate(values)
     ]
+
+
+def _env_marker(key: dict) -> str:
+    return f"{key.get('label')}|{(key.get('secret') or '')[-6:]}"
+
+
+def _prune_env_cooldowns(now: float | None = None) -> None:
+    current = time.time() if now is None else now
+    for marker, until in list(_env_cooldowns.items()):
+        if until <= current:
+            del _env_cooldowns[marker]
+
+
+def _env_cooling(key: dict) -> bool:
+    if key.get("id") is not None:
+        return False
+    _prune_env_cooldowns()
+    until = _env_cooldowns.get(_env_marker(key))
+    return bool(until and until > time.time())
 
 
 def _load_secret() -> bytes | None:
@@ -231,6 +251,7 @@ def all_keys() -> list[dict]:
 def select_keys() -> list[dict]:
     """Return the pool in weighted round-robin order, one entry per key."""
     global _rr_pos
+    _prune_env_cooldowns()
     keys = all_keys()
     if not keys:
         return []
@@ -249,7 +270,72 @@ def select_keys() -> list[dict]:
         if marker not in seen:
             seen.add(marker)
             unique.append(key)
-    return unique
+    return [key for key in unique if not _env_cooling(key)]
+
+
+def _cooldown_remaining(value: str | None, now: float) -> float | None:
+    if not value:
+        return None
+    try:
+        until = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    return until.timestamp() - now
+
+
+def shortest_cooldown() -> float | None:
+    """Return seconds until the nearest active key can be used again.
+
+    Env keys have no database row, so their cooldowns live in memory. DB keys
+    keep their cooldown in api_keys.cooldown_until. Only the active source is
+    considered: DB keys when they exist (unless KEY_SOURCE=env), otherwise the
+    env keys. Return None only when there are no active keys configured.
+    """
+    now = time.time()
+    _prune_env_cooldowns(now)
+
+    rows: list[sqlite3.Row] = []
+    conn = _admin_conn()
+    if conn:
+        try:
+            rows = conn.execute(
+                """
+                SELECT status, cooldown_until
+                FROM api_keys
+                WHERE provider = 'groq'
+                """
+            ).fetchall()
+        except sqlite3.Error:
+            rows = []
+        finally:
+            conn.close()
+
+    use_env = os.getenv("KEY_SOURCE", "").strip().lower() == "env" or not rows
+    if use_env:
+        env_keys = _env_keys()
+        if not env_keys:
+            return None
+        waits = [
+            until - now
+            for key in env_keys
+            if (until := _env_cooldowns.get(_env_marker(key))) and until > now
+        ]
+        return max(0.0, min(waits)) if waits else 0.0
+
+    active_rows = [
+        row for row in rows if row["status"] not in {"disabled", "invalid"}
+    ]
+    if not active_rows:
+        return None
+
+    waits = []
+    for row in active_rows:
+        remaining = _cooldown_remaining(row["cooldown_until"], now)
+        if remaining is not None and remaining > 0:
+            waits.append(remaining)
+    return max(0.0, min(waits)) if waits else 0.0
 
 
 def _usage_conn() -> sqlite3.Connection | None:
@@ -317,8 +403,10 @@ def record_result(
 
 
 def cool_down(key: dict, seconds: int = 60) -> None:
+    _prune_env_cooldowns()
     key_id = key.get("id")
     if key_id is None:
+        _env_cooldowns[_env_marker(key)] = time.time() + seconds
         return
     until = (
         datetime.now(timezone.utc) + timedelta(seconds=max(5, min(3600, seconds)))

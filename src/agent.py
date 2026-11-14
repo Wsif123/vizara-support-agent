@@ -2,7 +2,7 @@ import re
 
 from src.config import load_client_config
 from src.retriever import query as retrieve
-from src.llm_client import generate as call_llm
+from src.llm_client import LLMUnavailable, generate as call_llm
 from src.guardrails import build_classification_prompt, parse_classification_response
 from src.memory import (
     add_message,
@@ -102,13 +102,21 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
     system_prompt, user_prompt = build_classification_prompt(
         user_query, history_text, context_text, persona=config.get("persona")
     )
-    raw_response = call_llm(system_prompt, user_prompt, temperature=0.0)
-
-    result = parse_classification_response(raw_response)
-    classification = result.get("classification", "NEEDS_HUMAN")
-    answer_text = result.get("answer", raw_response)
+    llm_error: str | None = None
+    try:
+        raw_response = call_llm(system_prompt, user_prompt, temperature=0.0)
+    except LLMUnavailable as exc:
+        llm_error = str(exc)
+        print(f"[agent] LLM unavailable: {llm_error}")
+        classification = "NEEDS_HUMAN"
+        answer_text = ""
+    else:
+        result = parse_classification_response(raw_response)
+        classification = result.get("classification", "NEEDS_HUMAN")
+        answer_text = result.get("answer", raw_response)
 
     pending_question = get_pending(session_id)
+    escalation_reason = "llm_unavailable" if llm_error else "needs_human"
 
     # If we were waiting for an email and the customer supplied one, escalate
     # now even if this follow-up message itself looks answerable/off-topic.
@@ -120,8 +128,8 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         send_escalation_email(session_id, pending_question, email)
         clear_pending(session_id)
         add_message(session_id, "assistant", escalation_msg)
-        _log(session_id, client_id, user_query, escalation_msg, True, "needs_human", relevant_docs)
-        return {"answer": escalation_msg, "escalated": True, "escalation_reason": "needs_human"}
+        _log(session_id, client_id, user_query, escalation_msg, True, escalation_reason, relevant_docs)
+        return {"answer": escalation_msg, "escalated": True, "escalation_reason": escalation_reason}
 
     if classification == "ANSWERABLE":
         add_message(session_id, "assistant", answer_text)
@@ -143,11 +151,17 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         clear_pending(session_id)
     else:
         set_pending(session_id, user_query)
-        escalation_msg = (
-            f"I'll need to loop in {contact} on this one. Could you share your email address "
-            f"so {contact} can follow up with you personally? {contact} typically responds within ~1 hour."
-        )
+        if llm_error:
+            escalation_msg = (
+                "Our assistant is having a moment — let me get a human on this. "
+                "What's the best email for you?"
+            )
+        else:
+            escalation_msg = (
+                f"I'll need to loop in {contact} on this one. Could you share your email address "
+                f"so {contact} can follow up with you personally? {contact} typically responds within ~1 hour."
+            )
 
     add_message(session_id, "assistant", escalation_msg)
-    _log(session_id, client_id, user_query, escalation_msg, True, "needs_human", relevant_docs)
-    return {"answer": escalation_msg, "escalated": True, "escalation_reason": "needs_human"}
+    _log(session_id, client_id, user_query, escalation_msg, True, escalation_reason, relevant_docs)
+    return {"answer": escalation_msg, "escalated": True, "escalation_reason": escalation_reason}
