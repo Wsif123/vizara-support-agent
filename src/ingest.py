@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from src.config import load_client_config
+from src.retriever import invalidate
 from src.vectorstore import get_client
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -149,6 +150,7 @@ def ingest(client_id: str):
         client.delete_collection(collection_name)
     except Exception:
         pass
+    invalidate(client_id)
     collection = client.create_collection(
         collection_name,
         metadata={"hnsw:space": "cosine"},
@@ -193,6 +195,7 @@ def ingest(client_id: str):
     with open(processed_dir / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
+    invalidate(client_id)
     print(f"  Done. {len(texts)} chunks stored in Chroma collection '{collection_name}'")
 
 

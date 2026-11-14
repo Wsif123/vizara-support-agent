@@ -1,11 +1,23 @@
+import threading
+
 from src.vectorstore import get_client
 
 _collections: dict[str, object] = {}
+_collections_lock = threading.Lock()
+
+
+def invalidate(client_id=None):
+    with _collections_lock:
+        if client_id is None:
+            _collections.clear()
+        else:
+            _collections.pop(client_id, None)
 
 
 def _get_collection(client_id: str):
-    if client_id in _collections:
-        return _collections[client_id]
+    with _collections_lock:
+        if client_id in _collections:
+            return _collections[client_id]
 
     collection_name = f"client_{client_id}"
     try:
@@ -16,7 +28,8 @@ def _get_collection(client_id: str):
         # instead of raising a 500.
         return None
 
-    _collections[client_id] = collection
+    with _collections_lock:
+        _collections[client_id] = collection
     return collection
 
 
@@ -25,11 +38,15 @@ def query(client_id: str, text: str, top_k: int = None, score_threshold: float =
     if collection is None:
         return []
 
-    results = collection.query(
-        query_texts=[text],
-        n_results=top_k or 6,
-        include=["documents", "metadatas", "distances"],
-    )
+    try:
+        results = collection.query(
+            query_texts=[text],
+            n_results=top_k or 6,
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception:
+        invalidate(client_id)
+        return []
 
     docs = []
     if results["documents"] and results["documents"][0]:
