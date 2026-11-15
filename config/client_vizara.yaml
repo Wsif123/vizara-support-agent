@@ -29,6 +29,7 @@ client:
   escalation:
     email: wasif@vizarastudio.com
     contact_name: Wasif
+    sla_text: "within ~1 hour"
     message: >
       Sorry, I can't answer that with confidence. Let me get a human from the
       Vizara Studio team to help you out. They'll follow up shortly.

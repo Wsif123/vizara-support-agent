@@ -1,6 +1,6 @@
 import re
 
-from src.config import load_client_config
+from src import registry
 from src.retriever import query as retrieve
 from src.llm_client import LLMUnavailable, generate as call_llm
 from src.guardrails import build_classification_prompt, parse_classification_response
@@ -27,6 +27,10 @@ def _contact_name(config: dict) -> str:
     )
 
 
+def _sla(config: dict) -> str:
+    return (config.get("escalation", {}).get("sla_text") or "shortly").strip()
+
+
 def _log(session_id, client_id, query, response, escalated, reason, context):
     logger.log_exchange(
         session_id=session_id,
@@ -40,8 +44,16 @@ def _log(session_id, client_id, query, response, escalated, reason, context):
 
 
 def answer(session_id: str, user_query: str, client_id: str) -> dict:
-    config = load_client_config(client_id)
+    item = registry.get_client(client_id)
+    if not item:
+        return {
+            "answer": "This assistant is not available right now.",
+            "escalated": True,
+            "escalation_reason": "unknown_client",
+        }
+    config = item["config"]
     contact = _contact_name(config)
+    sla = _sla(config)
 
     add_message(session_id, "user", user_query)
 
@@ -74,7 +86,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         if email:
             escalation_msg = (
                 f"Thanks — {contact} has been notified and will personally follow up at {email} "
-                f"within ~1 hour. You'll hear from {contact} soon!"
+                f"{sla}. You'll hear from {contact} soon!"
             )
             send_escalation_email(session_id, user_query, email)
             clear_pending(session_id)
@@ -123,7 +135,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
     if email and pending_question:
         escalation_msg = (
             f"Thanks — {contact} has been notified and will personally follow up at {email} "
-            f"within ~1 hour. You'll hear from {contact} soon!"
+            f"{sla}. You'll hear from {contact} soon!"
         )
         send_escalation_email(session_id, pending_question, email)
         clear_pending(session_id)
@@ -145,7 +157,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
     if email:
         escalation_msg = (
             f"Thanks — {contact} has been notified and will personally follow up at {email} "
-            f"within ~1 hour. You'll hear from {contact} soon!"
+            f"{sla}. You'll hear from {contact} soon!"
         )
         send_escalation_email(session_id, user_query, email)
         clear_pending(session_id)
@@ -159,7 +171,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         else:
             escalation_msg = (
                 f"I'll need to loop in {contact} on this one. Could you share your email address "
-                f"so {contact} can follow up with you personally? {contact} typically responds within ~1 hour."
+                f"so {contact} can follow up with you personally? {contact} typically responds {sla}."
             )
 
     add_message(session_id, "assistant", escalation_msg)
