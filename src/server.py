@@ -23,14 +23,21 @@ from src.agent import answer
 from src.ingest import ingest, index_is_stale
 from src.registry import all_clients, client_domains, valid_client_ids
 
-# Per-client/per-visitor rate limiting: 10 requests per 60-second sliding
-# window. The old limit was shared by every visitor of a client, so one busy
-# page could throttle everyone else.
-RATE_LIMIT = 10
-RATE_WINDOW = 60
 
-# Safety net against a caller rotating IPs: a client-wide ceiling.
-GLOBAL_RATE_LIMIT = 120
+def _positive_env_int(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+# Per-client/per-visitor rate limiting: configurable, default 30 requests per
+# 60-second sliding window. GLOBAL_RATE_LIMIT is the client-wide safety net
+# against a caller rotating IPs.
+RATE_LIMIT = _positive_env_int("RATE_LIMIT", 30)
+GLOBAL_RATE_LIMIT = _positive_env_int("GLOBAL_RATE_LIMIT", 300)
+RATE_WINDOW = 60
 
 _client_requests: dict[str, deque] = defaultdict(deque)
 _client_global: dict[str, deque] = defaultdict(deque)
