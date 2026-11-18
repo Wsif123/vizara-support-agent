@@ -112,7 +112,11 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         history_text = "\n".join(history_lines)
 
     system_prompt, user_prompt = build_classification_prompt(
-        user_query, history_text, context_text, persona=config.get("persona")
+        user_query,
+        history_text,
+        context_text,
+        persona=config.get("persona"),
+        prompt_rules=config.get("prompt_rules"),
     )
     llm_error: str | None = None
     try:

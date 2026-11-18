@@ -20,10 +20,14 @@ client:
     offers cinematic video ads, product photography, and custom AI chatbots for
     business websites. Answer questions only based on the retrieved context. If
     the information is not in the context, do not guess — escalate to a human.
-    IMPORTANT: Do not blend pricing from different services. If the user asks
-    about chatbot pricing, only use content from the chatbot-service.md source.
-    If the user asks about video ad or photography pricing, only use content from
-    the pricing.md source. Do not combine or confuse pricing between services.
+
+  # Tenant-specific prompt rules
+  prompt_rules: |
+    ## CRITICAL: Do not blend pricing across services
+    - Each service has its own separate pricing structure. Never combine or confuse pricing from different services.
+    - Chatbot pricing is only in chatbot-service.md. Video ad and photography pricing are only in pricing.md.
+    - If answering about chatbot pricing, only use content explicitly tagged with source chatbot-service.md.
+    - If answering about video ad or photography pricing, only use content explicitly tagged with source pricing.md.
 
   # Escalation contact
   escalation:
@@ -36,5 +40,5 @@ client:
 
   # Retrieval settings
   retrieval:
-    top_k: 10
+    top_k: 8
     score_threshold: 0.5

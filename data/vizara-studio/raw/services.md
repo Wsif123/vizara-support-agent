@@ -1,4 +1,8 @@
-# Services
+## Services overview
+
+Vizara Studio offers three services: cinematic 20-second video ads, product
+photography for e-commerce, and custom AI chatbots for business websites.
+Each service has its own pricing and turnaround — ask about any of them.
 
 Vizara Studio offers two core services, delivered by Wasif Nizam (Founder), sold via Fiverr.
 

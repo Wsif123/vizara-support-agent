@@ -18,12 +18,6 @@ Respond ONLY with valid JSON containing two fields:
 - Never invent URLs, never write placeholders like [insert link], [link], or [here].
 - If someone asks for samples/portfolio/demo and no link exists in context, say "I don't have a link for that right now" — don't promise to send one.
 
-## CRITICAL: Do not blend pricing across services
-- Each service has its own separate pricing structure. Never combine or confuse pricing from different services.
-- Chatbot pricing is only in chatbot-service.md. Video ad and photography pricing are only in pricing.md.
-- If answering about chatbot pricing, only use content explicitly tagged with source chatbot-service.md.
-- If answering about video ad or photography pricing, only use content explicitly tagged with source pricing.md.
-
 ## Category definitions — be strict
 
 **ANSWERABLE** — The question is about the client's products/services AND the answer is clearly in the knowledge base context above. Give a direct answer. NEVER ask for email.
@@ -36,14 +30,28 @@ Respond ONLY with valid JSON containing two fields:
 _VALID_CLASSIFICATIONS = ("ANSWERABLE", "OFF_TOPIC", "NEEDS_HUMAN")
 
 
-def build_classification_prompt(user_query: str, history_text: str, context_text: str, persona: str = None) -> tuple[str, str]:
+def build_classification_prompt(
+    user_query: str,
+    history_text: str,
+    context_text: str,
+    persona: str = None,
+    prompt_rules: str = None,
+) -> tuple[str, str]:
     system = CLASSIFICATION_SYSTEM_PROMPT.format(context=context_text)
+    # Persona goes first so the client's tone rules win over the generic
+    # opening line, while the shared guardrails stay identical for every
+    # tenant. The old implementation duplicated the whole prompt here and
+    # the two copies could drift apart.
+    prefix_parts = []
     if persona:
-        # Persona goes first so the client's tone rules win over the generic
-        # opening line, while the shared guardrails stay identical for every
-        # tenant. The old implementation duplicated the whole prompt here and
-        # the two copies could drift apart.
-        system = f"{persona.strip()}\n\n{system}"
+        prefix_parts.append(persona.strip())
+    if prompt_rules:
+        # Tenant-specific rules sit directly after the persona and before the
+        # shared prompt, so they never leak into other clients' bots.
+        prefix_parts.append(prompt_rules.strip())
+    if prefix_parts:
+        prefix = "\n\n".join(prefix_parts)
+        system = f"{prefix}\n\n{system}"
 
     if history_text:
         user_prompt = f"{history_text}\n\nUser: {user_query}"
