@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import chip, csrf %}
 {% block content %}
-{% set snippet = '<script src="' ~ bot_url ~ '/widget/chat-widget.js" data-api-url="' ~ bot_url ~ '/chat" data-client-id="' ~ client.id ~ '" data-brand-name="' ~ client.display_name ~ '"></script>' %}
+{% set snippet = config.widget_snippet(client.id, bot_url) if config.widget_snippet is defined else '' %}
 <div class="page-head">
   <div>
     <h1>{{ client.display_name }} {{ chip(client.status) }}</h1>

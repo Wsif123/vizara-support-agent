@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import os
 import re
 import sqlite3
@@ -35,8 +36,38 @@ def _read_yaml(client_id: str) -> dict:
     return raw.get("client", {})
 
 
+class ClientConfig(dict):
+    """Client config with helpers used by the operator console templates."""
+
+    def widget_snippet(self, client_id: str, bot_url: str) -> str:
+        display_name = str(self.get("display_name") or client_id)
+        escalation = self.get("escalation") or {}
+        followup_name = (
+            str(escalation.get("contact_name") or "").strip() or display_name
+        )
+        greeting = (
+            f"Hi! I'm the {display_name} support assistant. How can I help you?"
+        )
+        base_url = str(bot_url).rstrip("/")
+        attributes = [
+            ("src", f"{base_url}/widget/chat-widget.js"),
+            ("data-api-url", f"{base_url}/chat"),
+            ("data-client-id", client_id),
+            ("data-brand-name", display_name),
+            ("data-followup-name", followup_name),
+            ("data-greeting", greeting),
+            ("data-header-sub", "Usually responds in minutes"),
+            ("data-accent", "#7c3aed"),
+        ]
+        lines = [
+            f'  {name}="{html.escape(str(value), quote=True)}"'
+            for name, value in attributes
+        ]
+        return "<script\n" + "\n".join(lines) + "\n></script>"
+
+
 def read_config(client_id: str) -> dict:
-    return _read_yaml(client_id)
+    return ClientConfig(_read_yaml(client_id))
 
 
 def _write_yaml(client_id: str, client: dict) -> None:

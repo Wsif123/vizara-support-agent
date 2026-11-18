@@ -5,7 +5,7 @@ client:
   name: test
   display_name: Test Client
   domain: null
-  enabled: false
+  enabled: true
   source_files: []
   persona: You are a test support agent.
   escalation:
