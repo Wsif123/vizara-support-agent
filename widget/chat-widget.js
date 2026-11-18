@@ -7,7 +7,7 @@
   }
 
   const BACKEND_URL = dataAttr("data-api-url", "http://localhost:8000/chat");
-  const CLIENT_ID = dataAttr("data-client-id", "vizara");
+  const CLIENT_ID = dataAttr("data-client-id", null);
   const BRAND_NAME = dataAttr("data-brand-name", "Vizara Studio");
   const FOLLOWUP_NAME = dataAttr("data-followup-name", "Wasif");
   const HEADER_SUB = dataAttr("data-header-sub", "Usually responds in minutes");
@@ -17,14 +17,13 @@
   );
 
   const VOID_BLACK = "#0a0a0a";
-  const NEBULA_PURPLE = "#7c3aed";
+  const ACCENT = dataAttr("data-accent", "#7c3aed");
   const NEBULA_GLOW = "rgba(124, 58, 237, 0.5)";
-  const SURFACE = "#141414";
+  const SURFACE = dataAttr("data-surface", "#141414");
   const SURFACE_LIGHT = "#1e1e1e";
   const TEXT_PRIMARY = "#f5f5f5";
   const TEXT_SECONDARY = "#a3a3a3";
   const BOT_BG = "#1c1c1e";
-  const USER_BG = "#7c3aed";
   const USER_TEXT = "#ffffff";
   const BORDER = "rgba(255,255,255,0.06)";
 
@@ -37,7 +36,7 @@
     }
     #vizara-bubble {
       width: 56px; height: 56px; border-radius: 50%;
-      background: ${NEBULA_PURPLE};
+      background: ${ACCENT};
       color: #fff; display: flex; align-items: center; justify-content: center;
       box-shadow: 0 4px 24px ${NEBULA_GLOW};
       transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
@@ -65,7 +64,7 @@
     }
     #vizara-avatar {
       width: 32px; height: 32px; border-radius: 50%;
-      background: ${NEBULA_PURPLE};
+      background: ${ACCENT};
       display: flex; align-items: center; justify-content: center;
       font-size: 14px; flex-shrink: 0;
     }
@@ -89,7 +88,7 @@
       white-space: pre-wrap;
     }
     .vizara-user {
-      align-self: flex-end; background: ${USER_BG}; color: ${USER_TEXT};
+      align-self: flex-end; background: ${ACCENT}; color: ${USER_TEXT};
       border-bottom-right-radius: 4px;
     }
     .vizara-bot {
@@ -111,9 +110,9 @@
       background: ${SURFACE_LIGHT}; color: ${TEXT_PRIMARY};
     }
     #vizara-input::placeholder { color: ${TEXT_SECONDARY}; }
-    #vizara-input:focus { border-color: ${NEBULA_PURPLE}; }
+    #vizara-input:focus { border-color: ${ACCENT}; }
     #vizara-send {
-      width: 38px; height: 38px; border-radius: 50%; background: ${NEBULA_PURPLE};
+      width: 38px; height: 38px; border-radius: 50%; background: ${ACCENT};
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; transition: background 0.15s, opacity 0.15s;
     }
@@ -173,6 +172,13 @@
     const sendBtn = root.querySelector("#vizara-send");
     const messages = root.querySelector("#vizara-messages");
 
+    if (!CLIENT_ID) {
+      messages.querySelector(".vizara-bot").textContent =
+        "This assistant isn't configured yet — the client id is missing.";
+      input.disabled = true;
+      sendBtn.disabled = true;
+    }
+
     bubble.addEventListener("click", function () {
       open = true;
       panel.classList.add("open");
@@ -187,6 +193,7 @@
     });
 
     function send() {
+      if (!CLIENT_ID) return;
       const text = input.value.trim();
       if (!text) return;
       input.value = "";
