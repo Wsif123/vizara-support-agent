@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from src import logger
 from src.agent import answer
 from src.ingest import ingest, index_is_stale
-from src.registry import all_clients, client_domains, valid_client_ids
+from src.registry import all_clients, client_domains, get_client, valid_client_ids
 
 
 def _positive_env_int(name: str, default: int) -> int:
@@ -193,6 +193,20 @@ def chat(req: ChatRequest, request: Request, origin: str = Header(None)):
 
     # Per-client/per-IP rate limiting
     _check_rate_limit(req.client_id, _client_ip(request))
+
+    client = get_client(req.client_id)
+    billing = (client or {}).get("config", {}).get("billing") or {}
+    included = billing.get("conversations_included")
+    if isinstance(included, int) and not isinstance(included, bool) and included > 0:
+        if logger.usage_count(req.client_id) >= included:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "This assistant has reached its monthly conversation limit. "
+                    "Please contact us to raise it."
+                ),
+            )
+    logger.bump_usage(req.client_id)
 
     result = answer(req.session_id, req.query, req.client_id)
     _log_memory("after-request")

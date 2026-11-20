@@ -26,6 +26,10 @@ def _database_url() -> str:
         return ""
 
 
+def period_key() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
 def _pg_connect():
     """Return a Postgres connection when DATABASE_URL is configured and usable."""
     url = _database_url()
@@ -89,8 +93,27 @@ def _ensure_pg(conn) -> None:
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp)"
         )
+    _ensure_usage(conn)
     conn.commit()
     _pg_initialized = True
+
+
+def _ensure_usage(conn) -> None:
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS client_usage (
+                client_id TEXT NOT NULL,
+                period TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (client_id, period)
+            )
+            """
+        )
+    finally:
+        cur.close()
+    conn.commit()
 
 
 def _ensure_sqlite():
@@ -138,6 +161,7 @@ def _ensure_sqlite():
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp)"
             )
+            _ensure_usage(conn)
             conn.commit()
         finally:
             conn.close()
@@ -212,3 +236,102 @@ def log_exchange(
             conn.close()
     except Exception as exc:
         print(f"[logger] local insert failed ({type(exc).__name__}).")
+
+
+def bump_usage(client_id: str) -> None:
+    """Increment the current month's conversation count. Never raises."""
+    period = period_key()
+
+    if _database_url():
+        pg = None
+        try:
+            pg = _pg_connect()
+            _ensure_usage(pg)
+            with pg.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO client_usage (client_id, period, count)
+                    VALUES (%s, %s, 1)
+                    ON CONFLICT (client_id, period)
+                    DO UPDATE SET count = client_usage.count + 1
+                    """,
+                    (client_id, period),
+                )
+            pg.commit()
+            return
+        except Exception as exc:
+            print(
+                f"[logger] postgres usage bump failed ({type(exc).__name__}) "
+                "— falling back to SQLite"
+            )
+        finally:
+            if pg is not None:
+                pg.close()
+
+    try:
+        _ensure_sqlite()
+        conn = sqlite3.connect(str(DB_PATH))
+        try:
+            _ensure_usage(conn)
+            conn.execute(
+                """
+                INSERT INTO client_usage (client_id, period, count)
+                VALUES (?, ?, 1)
+                ON CONFLICT (client_id, period)
+                DO UPDATE SET count = client_usage.count + 1
+                """,
+                (client_id, period),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        print(f"[logger] local usage bump failed ({type(exc).__name__}).")
+
+
+def usage_count(client_id: str) -> int:
+    """Return the current month's conversation count, or 0 on failure."""
+    period = period_key()
+
+    if _database_url():
+        pg = None
+        try:
+            pg = _pg_connect()
+            _ensure_usage(pg)
+            with pg.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT count FROM client_usage
+                    WHERE client_id = %s AND period = %s
+                    """,
+                    (client_id, period),
+                )
+                row = cur.fetchone()
+            return int(row[0]) if row else 0
+        except Exception as exc:
+            print(
+                f"[logger] postgres usage read failed ({type(exc).__name__}) "
+                "— falling back to SQLite"
+            )
+        finally:
+            if pg is not None:
+                pg.close()
+
+    try:
+        _ensure_sqlite()
+        conn = sqlite3.connect(str(DB_PATH))
+        try:
+            _ensure_usage(conn)
+            row = conn.execute(
+                """
+                SELECT count FROM client_usage
+                WHERE client_id = ? AND period = ?
+                """,
+                (client_id, period),
+            ).fetchone()
+            return int(row[0]) if row else 0
+        finally:
+            conn.close()
+    except Exception as exc:
+        print(f"[logger] usage read failed ({type(exc).__name__}).")
+        return 0
