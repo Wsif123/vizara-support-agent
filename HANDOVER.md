@@ -382,6 +382,8 @@ It covers health, Host rejection, setup/login, CSP/headers, every page, CSRF rej
 - Proxy headers: Render's edge adds `X-Forwarded-For`. The app trusts it automatically when `RENDER` is set; if that variable is absent, set `TRUST_PROXY=1` explicitly. Without it, every visitor shares the proxy IP and the per-visitor rate limit becomes a global limit.
 - Image rebuild = fresh `chroma_db`. New/changed client content is picked up by the startup stale-index check, but a redeploy is still required to ship new raw files.
 
+The Render free instance sleeps after 15 idle minutes, so the first request after a quiet period is slow. A free external monitor such as UptimeRobot can hit `/health` every 10 minutes to keep it warm. The free plan's 750 monthly instance-hours are the ceiling on this approach; a single always-warm service consumes nearly all of that allowance.
+
 > **Action required:** the repository changes made for the console, registry, Groq-only pool, and widget are **not committed or pushed**. Render continues to serve the old code until you commit, push to `master`, and verify the deploy. The deployed widget is 10,319 bytes; the local widget is 11,623 bytes.
 
 ### Frontend — Netlify
