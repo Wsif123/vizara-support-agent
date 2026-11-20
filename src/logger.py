@@ -11,7 +11,6 @@ DB_PATH = LOGS_DIR / "conversations.db"
 _initialized = False
 _init_lock = threading.Lock()
 _pg_initialized = False
-_pg_warned = False
 
 
 def _database_url() -> str:
@@ -29,24 +28,39 @@ def _database_url() -> str:
 
 def _pg_connect():
     """Return a Postgres connection when DATABASE_URL is configured and usable."""
-    global _pg_warned
     url = _database_url()
     if not url:
         return None
+    import psycopg
+
+    return psycopg.connect(url, connect_timeout=6)
+
+
+def init_db() -> None:
+    url = _database_url()
+    if not url:
+        print("[logger] no DATABASE_URL, using local SQLite")
+        return
+
     try:
-        import psycopg
-    except Exception:
-        if not _pg_warned:
-            print("[logger] DATABASE_URL is set but psycopg is not installed — using local SQLite.")
-            _pg_warned = True
-        return None
-    try:
-        return psycopg.connect(url, connect_timeout=6)
+        import psycopg  # noqa: F401
     except Exception as exc:
-        if not _pg_warned:
-            print(f"[logger] live database unreachable ({type(exc).__name__}) — using local SQLite.")
-            _pg_warned = True
-        return None
+        raise RuntimeError(
+            "DATABASE_URL is set but psycopg is not installed"
+        ) from exc
+
+    try:
+        conn = _pg_connect()
+    except Exception as exc:
+        raise RuntimeError(
+            f"DATABASE_URL is set but unreachable: {type(exc).__name__}"
+        ) from exc
+
+    try:
+        _ensure_pg(conn)
+    finally:
+        conn.close()
+    print("[logger] postgres ready")
 
 
 def _ensure_pg(conn) -> None:
@@ -154,9 +168,10 @@ def log_exchange(
         context_json,
     )
 
-    pg = _pg_connect()
-    if pg is not None:
+    if _database_url():
+        pg = None
         try:
+            pg = _pg_connect()
             _ensure_pg(pg)
             with pg.cursor() as cur:
                 cur.execute(
@@ -171,9 +186,13 @@ def log_exchange(
             pg.commit()
             return
         except Exception as exc:
-            print(f"[logger] Postgres insert failed ({type(exc).__name__}) — falling back to SQLite.")
+            print(
+                f"[logger] postgres insert failed ({type(exc).__name__}) "
+                "— falling back to SQLite"
+            )
         finally:
-            pg.close()
+            if pg is not None:
+                pg.close()
 
     try:
         _ensure_sqlite()

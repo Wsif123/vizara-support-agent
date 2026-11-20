@@ -28,6 +28,5 @@ jinja2==3.1.6
 cryptography==50.0.2
 python-multipart==0.0.33
 
-# Optional: live conversations from Neon/Postgres via DATABASE_URL.
-# Install with: pip install "psycopg[binary]"
-# psycopg[binary]>=3.2
+# Postgres transcript store when DATABASE_URL is set.
+psycopg[binary]>=3.2

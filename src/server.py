@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from src import logger
 from src.agent import answer
 from src.ingest import ingest, index_is_stale
 from src.registry import all_clients, client_domains, valid_client_ids
@@ -138,6 +139,7 @@ def _log_memory(label: str):
 
 
 def bootstrap():
+    logger.init_db()
     _log_memory("startup-before")
     for client_id, item in sorted(all_clients().items()):
         if not item["enabled"] or not item["config"].get("source_files"):
