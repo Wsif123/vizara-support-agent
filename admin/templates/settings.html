@@ -54,8 +54,7 @@
         <div class="sys-row" style="padding-top:0"><span class="dot" style="opacity:0"></span> <span class="hint" style="margin:0">{{ source.detail }}</span></div>
         <div class="sys-row"><span class="dot {{ 'green' if database_url else 'amber' }}"></span> Postgres <span class="val">{{ 'configured' if database_url else 'not configured' }}</span></div>
         <div class="sys-row"><span class="dot {{ 'green' if render_url else 'amber' }}"></span> Render health <span class="val">{{ render_url or 'RENDER_DEMO_URL not set' }}</span></div>
-        <div class="sys-row"><span class="dot {{ 'green' if formspree else 'amber' }}"></span> Formspree escalation <span class="val">{{ 'configured' if formspree else 'not configured' }}</span></div>
-        <div class="sys-row"><span class="dot blue"></span> Escalation email <span class="val">{{ notify_email or '—' }}</span></div>
+        <div class="sys-row"><span class="dot {{ 'green' if formspree else 'amber' }}"></span> Escalation notifications <span class="val">{{ 'configured' if formspree else 'not configured' }}</span></div>        <div class="sys-row"><span class="dot blue"></span> Escalation email <span class="val">{{ notify_email or '—' }}</span></div>
         <div class="sys-row"><span class="dot blue"></span> Groq model <span class="val mono">{{ model }}</span></div>
         <div class="sys-row"><span class="dot blue"></span> Groq keys <span class="val">{{ key_count }} in pool</span></div>
         <div class="divider"></div>

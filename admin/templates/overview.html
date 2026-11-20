@@ -16,6 +16,13 @@
   </div>
 </div>
 
+{% if not notifier_configured %}
+<div class="banner red">
+  <svg class="icon"><use href="#i-alert"/></svg>
+  <span><strong>Escalation email is not configured</strong> — customers are told a human was notified but nothing is sent.</span>
+</div>
+{% endif %}
+
 <div class="grid stats">
   <div class="stat">
     <div class="stat-label">Active clients</div>

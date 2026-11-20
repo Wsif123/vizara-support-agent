@@ -39,6 +39,7 @@ from fastapi.templating import Jinja2Templates
 from admin import auth, billing, db, keys, metrics, onboarding
 from admin.security import SecurityMiddleware
 from src import key_store
+from src.notifier import notifier_configured
 from src.registry import invalidate_cache as invalidate_client_cache
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -590,6 +591,7 @@ def overview(request: Request, days: str = "7"):
                 "render": _render_health(),
                 "model": model,
                 "has_activity": stats["messages"] > 0,
+                "notifier_configured": notifier_configured(),
             }
         )
         return _render(request, "overview.html", ctx)

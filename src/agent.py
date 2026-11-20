@@ -1,4 +1,7 @@
+import os
 import re
+
+from dotenv import load_dotenv
 
 from src import registry
 from src.retriever import query as retrieve
@@ -16,6 +19,8 @@ from src.memory import (
 from src import logger
 from src.notifier import send_escalation_email
 
+load_dotenv()
+
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 
 
@@ -27,8 +32,32 @@ def _contact_name(config: dict) -> str:
     )
 
 
+def _escalation_recipients(config: dict) -> list[str]:
+    operator = (os.getenv("NOTIFY_EMAIL_TO") or "").strip()
+    client_addr = (config.get("escalation", {}).get("email") or "").strip()
+    if config.get("escalation", {}).get("direct_to_client") and client_addr:
+        return [a for a in (client_addr, operator) if a]
+    return [a for a in (operator,) if a]
+
+
 def _sla(config: dict) -> str:
     return (config.get("escalation", {}).get("sla_text") or "shortly").strip()
+
+
+def _deliver_escalation(
+    session_id: str, question: str, customer_email: str, config: dict
+) -> bool:
+    recipients = _escalation_recipients(config)
+    if not recipients:
+        print(f"[agent] no escalation recipient for session {session_id}")
+        return False
+
+    primary, *cc = recipients
+    detail = f"to {primary}"
+    if cc:
+        detail += f"; cc {', '.join(cc)}"
+    print(f"[agent] escalation recipients for session {session_id}: {detail}")
+    return send_escalation_email(session_id, question, customer_email, recipients)
 
 
 def _log(session_id, client_id, query, response, escalated, reason, context):
@@ -83,12 +112,19 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         # The old reply promised a human but never captured contact details or
         # sent anything. Treat it like NEEDS_HUMAN so the escalation actually
         # reaches the operator.
+        escalation_reason = "no_relevant_context"
         if email:
             escalation_msg = (
                 f"Thanks — {contact} has been notified and will personally follow up at {email} "
                 f"{sla}. You'll hear from {contact} soon!"
             )
-            send_escalation_email(session_id, user_query, email)
+            delivered = _deliver_escalation(session_id, user_query, email, config)
+            if not delivered:
+                escalation_reason = "needs_human_undelivered"
+                print(
+                    f"[agent] escalation email not delivered for session {session_id}; "
+                    "marking needs_human_undelivered"
+                )
             clear_pending(session_id)
         else:
             set_pending(session_id, user_query)
@@ -98,8 +134,8 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
             )
 
         add_message(session_id, "assistant", escalation_msg)
-        _log(session_id, client_id, user_query, escalation_msg, True, "no_relevant_context", retrieved_docs)
-        return {"answer": escalation_msg, "escalated": True, "escalation_reason": "no_relevant_context"}
+        _log(session_id, client_id, user_query, escalation_msg, True, escalation_reason, retrieved_docs)
+        return {"answer": escalation_msg, "escalated": True, "escalation_reason": escalation_reason}
 
     context_text = "\n\n".join(
         [f"[Source: {d['metadata'].get('source', 'unknown')}]\n{d['text']}" for d in relevant_docs]
@@ -141,7 +177,13 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
             f"Thanks — {contact} has been notified and will personally follow up at {email} "
             f"{sla}. You'll hear from {contact} soon!"
         )
-        send_escalation_email(session_id, pending_question, email)
+        delivered = _deliver_escalation(session_id, pending_question, email, config)
+        if not delivered:
+            escalation_reason = "needs_human_undelivered"
+            print(
+                f"[agent] escalation email not delivered for session {session_id}; "
+                "marking needs_human_undelivered"
+            )
         clear_pending(session_id)
         add_message(session_id, "assistant", escalation_msg)
         _log(session_id, client_id, user_query, escalation_msg, True, escalation_reason, relevant_docs)
@@ -163,7 +205,13 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
             f"Thanks — {contact} has been notified and will personally follow up at {email} "
             f"{sla}. You'll hear from {contact} soon!"
         )
-        send_escalation_email(session_id, user_query, email)
+        delivered = _deliver_escalation(session_id, user_query, email, config)
+        if not delivered:
+            escalation_reason = "needs_human_undelivered"
+            print(
+                f"[agent] escalation email not delivered for session {session_id}; "
+                "marking needs_human_undelivered"
+            )
         clear_pending(session_id)
     else:
         set_pending(session_id, user_query)

@@ -3,7 +3,8 @@ client:
   domain: acme.com
   enabled: true
   escalation:
-    email: support@acme.com
+    email: vizarastudio3@gmail.com
+    direct_to_client: true
     contact_name: Acme Support
     message: Sorry, I can't answer that with confidence. Let me get a human from the
       Acme Corp team to help you out.
