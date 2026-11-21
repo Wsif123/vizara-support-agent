@@ -21,6 +21,12 @@ def _iso(value: datetime) -> str:
 
 
 def database_url() -> str:
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except Exception:
+        pass
     return (os.getenv("DATABASE_URL") or "").strip()
 
 
@@ -161,6 +167,23 @@ def conversation_rows(
         tuple(params),
     )
     return rows, int(total or 0)
+
+
+def month_usage(client_id: str) -> int:
+    """Conversations for this client since the first of the current month, UTC."""
+    start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    return int(
+        _scalar(
+            """
+            SELECT COUNT(*) AS n FROM conversations
+            WHERE client_id = ? AND timestamp >= ?
+            """,
+            (client_id, _iso(start)),
+        )
+        or 0
+    )
 
 
 def conversation(conversation_id: int) -> dict | None:

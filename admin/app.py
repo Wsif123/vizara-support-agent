@@ -14,9 +14,12 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import List, Optional
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
 
-load_dotenv()
+    load_dotenv()
+except Exception:
+    pass
 
 import httpx
 from fastapi import (
@@ -257,6 +260,18 @@ def _page_int(value, default: int, low: int, high: int) -> int:
         return max(low, min(high, int(value)))
     except (TypeError, ValueError):
         return default
+
+
+def _conversations_included(config: dict) -> int:
+    billing_config = (config or {}).get("billing") or {}
+    value = billing_config.get("conversations_included")
+    if isinstance(value, bool):
+        return 0
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return value if value > 0 else 0
 
 
 def _chart(daily: list[dict]) -> dict:
@@ -561,6 +576,25 @@ def overview(request: Request, days: str = "7"):
             item["resolved"] = item["id"] in resolved_ids
 
         configs = {item["id"]: item for item in onboarding.list_configs()}
+        quota_warnings = []
+        for client in clients:
+            item = configs.get(client["id"])
+            if not item:
+                continue
+            included = _conversations_included(item.get("config"))
+            if not included:
+                continue
+            used = metrics.month_usage(client["id"])
+            if used * 5 >= included * 4:
+                quota_warnings.append(
+                    {
+                        "id": client["id"],
+                        "display_name": client["display_name"],
+                        "used": used,
+                        "included": included,
+                        "percent": round(used / included * 100),
+                    }
+                )
         index_rows = []
         for client in clients:
             if client["id"] not in configs:
@@ -592,6 +626,7 @@ def overview(request: Request, days: str = "7"):
                 "model": model,
                 "has_activity": stats["messages"] > 0,
                 "notifier_configured": notifier_configured(),
+                "quota_warnings": quota_warnings,
             }
         )
         return _render(request, "overview.html", ctx)
@@ -742,6 +777,8 @@ def client_detail(request: Request, client_id: str):
                 "page_title": client["display_name"],
                 "page_subtitle": config.get("domain") or "No domain registered",
                 "usage": metrics.client_usage(30).get(client_id, {}),
+                "month_usage": metrics.month_usage(client_id),
+                "conversations_included": _conversations_included(config),
                 "billing": billing.client_billing(conn, client_id),
                 "plans": billing.list_plans(conn),
                 "content": onboarding.content_files(config) if config else [],
