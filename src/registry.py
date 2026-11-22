@@ -34,6 +34,9 @@ def _load() -> dict[str, dict]:
         clients[client_id] = {
             "id": client_id,
             "enabled": bool(config.get("enabled", True)),
+            "billing_status": str(
+                config.get("billing_status") or "active"
+            ).strip().lower(),
             "domain": (config.get("domain") or "").strip().lower() or None,
             "display_name": config.get("display_name") or client_id,
             "config": config,
@@ -52,7 +55,11 @@ def all_clients() -> dict[str, dict]:
 
 
 def valid_client_ids() -> set[str]:
-    return {cid for cid, item in all_clients().items() if item["enabled"]}
+    return {
+        cid
+        for cid, item in all_clients().items()
+        if item["enabled"] and item["billing_status"] != "suspended"
+    }
 
 
 def client_domains() -> dict[str, str | None]:

@@ -4,7 +4,7 @@
 {% set snippet = config.widget_snippet(client.id, bot_url) if config.widget_snippet is defined else '' %}
 <div class="page-head">
   <div>
-    <h1>{{ client.display_name }} {{ chip(client.status) }}</h1>
+    <h1>{{ client.display_name }} {% if billing_status == 'suspended' %}{{ chip('suspended') }}{% else %}{{ chip(client.status) }}{% endif %}</h1>
     <p>{{ client.domain or 'No domain registered' }} · <span class="mono">client_{{ client.id }}</span></p>
   </div>
   <div class="actions">
@@ -167,10 +167,32 @@
 </div>
 
 {% elif tab == 'billing' %}
+{% set over_limit = conversations_included > 0 and month_usage >= conversations_included %}
+{% set near_limit = conversations_included > 0 and month_usage * 5 >= conversations_included * 4 %}
+<div class="banner {{ 'red' if over_limit else ('' if near_limit else 'blue') }}">
+  <svg class="icon"><use href="#i-alert"/></svg>
+  <span>{% if conversations_included %}{{ month_usage }} of {{ conversations_included }} conversations used this month{% else %}{{ month_usage }} used, no limit set{% endif %}</span>
+</div>
 <div class="grid cols-2">
   <div class="panel">
     <div class="panel-head"><h2>Subscription</h2><a class="link right" href="/billing">Manage <svg class="icon"><use href="#i-arrow"/></svg></a></div>
     <div class="panel-body">
+      {% set billing_status = config.get('billing_status', 'active') %}
+      <div class="sys-row">
+        <span class="dot {{ 'red' if billing_status == 'suspended' else ('amber' if billing_status == 'past_due' else 'green') }}"></span>
+        Billing status <span class="val">{{ billing_status }}</span>
+      </div>
+      <form method="post" action="/clients/{{ client.id }}/billing-status" style="margin-top:10px">
+        {{ csrf(csrf_token) }}
+        {% if billing_status == 'suspended' %}
+        <input type="hidden" name="status" value="active">
+        <button class="btn sm primary" type="submit"><svg class="icon"><use href="#i-play"/></svg>Reactivate</button>
+        {% else %}
+        <input type="hidden" name="status" value="suspended">
+        <button class="btn sm danger" type="submit"><svg class="icon"><use href="#i-clock"/></svg>Suspend</button>
+        {% endif %}
+      </form>
+      <div class="divider"></div>
       {% if billing.subscription %}
       <dl class="kv">
         <dt>Plan</dt><dd>{{ billing.subscription.plan_name }}</dd>

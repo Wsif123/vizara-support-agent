@@ -12,10 +12,17 @@ import sqlite3
 from datetime import date, datetime, timezone
 from urllib.parse import urlparse
 
+from admin import onboarding
 from admin.db import now_iso
 
 METHODS = ["bank", "wise", "lemonsqueezy", "safepay", "cash", "other"]
 PROVIDERS = ["lemonsqueezy", "safepay", "other"]
+BILLING_STATUSES = {"active", "past_due", "suspended"}
+BILLING_REMINDERS = {
+    "suspended": "Suspend applied locally — push to deploy.",
+    "active": "Reactivate applied locally — push to deploy.",
+    "past_due": "Billing status updated locally — push to deploy.",
+}
 
 
 def today() -> date:
@@ -432,3 +439,22 @@ def client_billing(conn: sqlite3.Connection, client_id: str) -> dict:
         "invoices": invoices,
         "links": links,
     }
+
+
+def set_billing_status(
+    conn: sqlite3.Connection, client_id: str, status: str
+) -> str:
+    """Write the client's billing status to its YAML and return the deploy reminder."""
+    status = (status or "").strip().lower()
+    if status not in BILLING_STATUSES:
+        raise ValueError("Invalid billing status.")
+    if (
+        conn.execute("SELECT id FROM clients WHERE id = ?", (client_id,)).fetchone()
+        is None
+    ):
+        raise ValueError("Unknown client.")
+
+    config = onboarding.read_config(client_id)
+    config["billing_status"] = status
+    onboarding._write_yaml(client_id, dict(config))
+    return BILLING_REMINDERS[status]

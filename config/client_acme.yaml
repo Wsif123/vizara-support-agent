@@ -1,7 +1,11 @@
+# Acme Corp — client configuration
+# Managed by the Vizara operator console.
+
 client:
   display_name: Acme Corp
   domain: acme.com
   enabled: true
+  billing_status: active
   escalation:
     email: vizarastudio3@gmail.com
     direct_to_client: true
@@ -16,7 +20,7 @@ client:
     score_threshold: 0.5
     top_k: 6
   billing:
-    conversations_included: 3
+    conversations_included: 50
   source_files:
   - faq.md
   - pricing.md

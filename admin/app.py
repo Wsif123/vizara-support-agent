@@ -145,6 +145,7 @@ def _initials(value) -> str:
 STATUS_META = {
     "active": ("green", "Active"),
     "paused": ("gray", "Paused"),
+    "suspended": ("amber", "Suspended"),
     "archived": ("gray", "Archived"),
     "trial": ("blue", "Trial"),
     "past_due": ("red", "Past due"),
@@ -770,6 +771,9 @@ def client_detail(request: Request, client_id: str):
             {
                 "client": client,
                 "config": config,
+                "billing_status": str(
+                    config.get("billing_status") or "active"
+                ).strip().lower(),
                 "tab": tab,
                 "bot_url": (
                     os.getenv("PUBLIC_BOT_URL") or "http://localhost:8000"
@@ -873,6 +877,47 @@ def client_status(
             conn,
             session,
             f"{client_id} is now {status}. The public bot picks this up within 2 seconds.",
+        )
+
+
+@app.post("/clients/{client_id}/billing-status")
+def client_billing_status(
+    request: Request,
+    client_id: str,
+    status: str = Form(...),
+    csrf_token: str = Form(""),
+):
+    with db.db() as conn:
+        session = auth.get_session(request, conn)
+        if not session:
+            raise auth.AuthRequired()
+        _check_csrf(request, session, csrf_token)
+        try:
+            message = billing.set_billing_status(conn, client_id, status)
+        except ValueError as exc:
+            return _redirect(
+                f"/clients/{client_id}?tab=billing",
+                conn,
+                session,
+                str(exc),
+                "error",
+            )
+        except Exception:
+            return _redirect(
+                f"/clients/{client_id}?tab=billing",
+                conn,
+                session,
+                "Billing status could not be updated.",
+                "error",
+            )
+        _audit(conn, request, "billing_status", client_id, status)
+        conn.commit()
+        invalidate_client_cache()
+        return _redirect(
+            f"/clients/{client_id}?tab=billing",
+            conn,
+            session,
+            message,
         )
 
 

@@ -5,6 +5,7 @@ client:
   display_name: Vizara Studio
   domain: vizarastudioo.netlify.app
   enabled: true
+  billing_status: active
 
   # Source file paths (relative to data/<client>/raw/)
   source_files:
