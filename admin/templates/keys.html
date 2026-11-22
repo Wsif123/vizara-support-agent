@@ -22,6 +22,7 @@
 
 <div class="key-cards">
   {% for key in keys %}
+  {% set env = env_stats.get(key.marker, {}) if not key.id else {} %}
   <div class="panel key-card">
     <div class="key-card-top">
       <div class="avatar">{{ key.label|initials }}</div>
@@ -39,16 +40,18 @@
     </div>
     <div class="divider"></div>
     <dl class="kv" style="grid-template-columns:110px minmax(0,1fr);font-size:10.5px">
-      <dt>Requests today</dt><dd class="mono">{{ key.requests_today }}</dd>
-      <dt>Tokens today</dt><dd class="mono">{{ "{:,}".format(key.tokens_today) }}</dd>
+      <dt>Requests today</dt><dd class="mono">{{ env.requests if env else key.requests_today }}</dd>
+      <dt>Tokens today</dt><dd class="mono">{{ "{:,}".format(env.tokens if env else key.tokens_today) }}</dd>
+      <dt>429s today</dt><dd class="mono">{{ env.rate_limited if env else key.r429 }}</dd>
       <dt>Tokens last min</dt><dd class="mono">{{ "{:,}".format(key.tokens_last_min) }}</dd>
       <dt>Weight</dt><dd class="mono">{{ key.weight }}</dd>
-      <dt>Last used</dt><dd>{{ key.last_used_at|timeago if key.last_used_at else 'never' }}</dd>
+      <dt>Last used</dt><dd>{{ (env.last_used or key.last_used_at)|timeago if (env.last_used or key.last_used_at) else 'never' }}</dd>
       <dt>Last checked</dt><dd>{{ key.last_checked_at|timeago if key.last_checked_at else 'never' }}</dd>
       {% if key.cooling_seconds %}
       <dt>Cooling for</dt><dd class="mono">{{ key.cooling_seconds }}s</dd>
       {% endif %}
     </dl>
+    {% if key.id %}
     <div class="btn-row" style="margin-top:12px">
       <form class="inline-form" method="post" action="/keys/{{ key.id }}/test">{{ csrf(csrf_token) }}<button class="btn sm" type="submit"><svg class="icon"><use href="#i-zap"/></svg>Test</button></form>
       <form class="inline-form" method="post" action="/keys/{{ key.id }}/toggle">{{ csrf(csrf_token) }}<button class="btn sm" type="submit">{{ 'Disable' if key.status != 'disabled' else 'Enable' }}</button></form>
@@ -63,6 +66,9 @@
         <button class="btn sm danger" type="submit"><svg class="icon"><use href="#i-trash"/></svg></button>
       </form>
     </div>
+    {% else %}
+    <p class="hint" style="margin:12px 0 0">Managed in <span class="mono">.env</span>; edit and restart the service to change it.</p>
+    {% endif %}
   </div>
   {% else %}
   <div class="panel" style="grid-column:1/-1">
@@ -70,6 +76,7 @@
   </div>
   {% endfor %}
 </div>
+<p class="hint" style="margin:8px 2px 0">Environment-key counters reset when the service restarts.</p>
 
 <div class="grid cols-2">
   <div class="panel">

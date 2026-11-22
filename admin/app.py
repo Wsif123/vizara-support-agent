@@ -1452,6 +1452,50 @@ def billing_archive_link(
 # API keys
 # ---------------------------------------------------------------------------
 
+def _env_key_cards(env_stats: dict[str, dict]) -> list[dict]:
+    """Build pool cards for environment keys, using live in-process counters."""
+    cards: list[dict] = []
+    total_requests = 0
+    for index, secret in enumerate(key_store.read_env_key_values(), start=1):
+        label = f"Groq - env {index}"
+        marker = f"{label}|{(secret or '')[-6:]}"
+        stat = env_stats.get(marker) or {}
+        requests = int(stat.get("requests") or 0)
+        total_requests += requests
+        hint = secret[-4:] if len(secret) >= 4 else "••••"
+        cards.append(
+            {
+                "id": None,
+                "marker": marker,
+                "label": label,
+                "hint": hint,
+                "masked": f"gsk_…{hint}",
+                "status": "env",
+                "display_status": "active",
+                "weight": 1,
+                "cooldown_until": None,
+                "last_checked_at": None,
+                "last_used_at": stat.get("last_used"),
+                "created_at": None,
+                "requests_today": requests,
+                "r429": int(stat.get("rate_limited") or 0),
+                "tokens_today": int(stat.get("tokens") or 0),
+                "tokens_last_min": 0,
+                "cooling_seconds": 0,
+                "tpm_pct": 0,
+                "daily_pct": min(100, round(requests / 1000 * 100)),
+                "load_pct": 0,
+            }
+        )
+    for card in cards:
+        card["load_pct"] = (
+            round(card["requests_today"] / total_requests * 100)
+            if total_requests
+            else 0
+        )
+    return cards
+
+
 @app.get("/keys", response_class=HTMLResponse)
 def keys_page(request: Request):
     with db.db() as conn:
@@ -1472,13 +1516,33 @@ def keys_page(request: Request):
         db_count = conn.execute(
             "SELECT COUNT(*) AS n FROM api_keys WHERE provider = 'groq'"
         ).fetchone()["n"]
+        env_stats = key_store.env_key_stats()
+        use_env = (
+            os.getenv("KEY_SOURCE", "").strip().lower() == "env" or not db_count
+        )
+        pool = dict(ctx["pool"])
+        if use_env:
+            env_keys = _env_key_cards(env_stats)
+            pool.update(
+                {
+                    "key_list": env_keys,
+                    "total": len(env_keys),
+                    "active": len(env_keys),
+                    "issues": 0,
+                    "requests_today": sum(k["requests_today"] for k in env_keys),
+                    "tokens_today": sum(k["tokens_today"] for k in env_keys),
+                    "r429": sum(k["r429"] for k in env_keys),
+                }
+            )
         ctx.update(
             {
-                "keys": ctx["pool"]["key_list"],
+                "pool": pool,
+                "keys": pool["key_list"],
                 "usage_rows": [dict(row) for row in usage_rows],
                 "db_count": db_count,
+                "env_stats": env_stats,
                 "model": key_store.get_groq_model(),
-                "source": "Encrypted local store" if db_count else "Environment variables",
+                "source": "Environment variables" if use_env else "Encrypted local store",
             }
         )
         return _render(request, "keys.html", ctx)

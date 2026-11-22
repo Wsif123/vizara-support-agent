@@ -35,6 +35,7 @@ _lock = threading.Lock()
 _rr_pos = 0
 _secret_cache: bytes | None = None
 _env_cooldowns: dict[str, float] = {}  # marker -> unix deadline
+_env_stats: dict[str, dict] = {}  # marker -> live counters (process-local)
 
 
 def now_iso() -> str:
@@ -352,13 +353,31 @@ def record_result(
     model: str | None = None,
 ) -> None:
     key_id = key.get("id")
-    if key_id is None:
-        return
     usage = usage or {}
+    stamp = now_iso()
+    if key_id is None:
+        marker = _env_marker(key)
+        with _lock:
+            stat = _env_stats.setdefault(
+                marker,
+                {
+                    "requests": 0,
+                    "tokens": 0,
+                    "rate_limited": 0,
+                    "last_used": None,
+                    "last_status": None,
+                },
+            )
+            stat["requests"] += 1
+            stat["tokens"] += int(usage.get("total_tokens") or 0)
+            if status == "429":
+                stat["rate_limited"] += 1
+            stat["last_used"] = stamp
+            stat["last_status"] = status
+        return
     conn = _usage_conn()
     if not conn:
         return
-    stamp = now_iso()
     try:
         conn.execute(
             """
@@ -400,6 +419,12 @@ def record_result(
         pass
     finally:
         conn.close()
+
+
+def env_key_stats() -> dict[str, dict]:
+    """Return a snapshot of environment-key counters (safe to mutate)."""
+    with _lock:
+        return {marker: dict(stat) for marker, stat in _env_stats.items()}
 
 
 def cool_down(key: dict, seconds: int = 60) -> None:
