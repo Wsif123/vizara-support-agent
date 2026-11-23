@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import os
 import re
+import shutil
 import sqlite3
 import tempfile
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ from urllib.parse import urlparse
 
 import yaml
 
+from admin import db
 from admin.db import now_iso
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -429,3 +431,78 @@ def sync_admin_clients(conn: sqlite3.Connection) -> int:
         created += 1
     conn.commit()
     return created
+
+
+def delete_client(client_id: str) -> dict:
+    """Remove a client's config, content, index, and console records.
+
+    Invoices are financial records and are deliberately kept. Leaving them
+    behind also leaves their client_id/subscription_id pointing at rows this
+    function deletes, which SQLite's foreign keys would otherwise reject, so
+    enforcement is suspended for this one transaction.
+    """
+    if (
+        not client_id
+        or client_id in {".", ".."}
+        or "/" in client_id
+        or "\\" in client_id
+    ):
+        raise ValueError("Unknown client.")
+
+    try:
+        name = str(_read_yaml(client_id).get("name") or "").strip() or None
+    except Exception:
+        name = None
+
+    problems: list[str] = []
+
+    target = config_path(client_id)
+    if target.exists():
+        try:
+            target.unlink()
+        except OSError as exc:
+            problems.append(f"config ({type(exc).__name__})")
+
+    if name:
+        data_root = DATA_DIR.resolve()
+        data_dir = (DATA_DIR / name).resolve()
+        if data_dir != data_root and data_dir.is_relative_to(data_root):
+            if data_dir.is_dir():
+                try:
+                    shutil.rmtree(data_dir)
+                except OSError as exc:
+                    problems.append(f"data ({type(exc).__name__})")
+    else:
+        problems.append("data (name unknown)")
+
+    try:
+        from src.vectorstore import get_client
+
+        get_client().delete_collection(f"client_{client_id}")
+    except Exception:
+        pass
+
+    with db.db() as conn:
+        conn.execute("PRAGMA foreign_keys=OFF")
+        if conn.execute("PRAGMA foreign_keys").fetchone()[0]:
+            raise RuntimeError("Could not suspend foreign key enforcement.")
+        kept = conn.execute(
+            "SELECT COUNT(*) AS n FROM invoices WHERE client_id = ?", (client_id,)
+        ).fetchone()["n"]
+        conn.execute("DELETE FROM subscriptions WHERE client_id = ?", (client_id,))
+        conn.execute("DELETE FROM clients WHERE id = ?", (client_id,))
+        conn.commit()
+
+    try:
+        from src.registry import invalidate_cache
+
+        invalidate_cache()
+    except Exception:
+        pass
+
+    return {
+        "client_id": client_id,
+        "name": name,
+        "invoices_kept": kept,
+        "problems": problems,
+    }

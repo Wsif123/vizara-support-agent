@@ -2,6 +2,12 @@
 {% from "_macros.html" import chip, csrf %}
 {% block content %}
 {% set snippet = config.widget_snippet(client.id, bot_url) if config.widget_snippet is defined else '' %}
+{% if config_missing %}
+<div class="banner red">
+  <svg class="icon"><use href="#i-alert"/></svg>
+  <span><strong>Config file is missing for this client.</strong> Restore <span class="mono">config/client_{{ client.id }}.yaml</span> or delete the client.</span>
+</div>
+{% endif %}
 <div class="page-head">
   <div>
     <h1>{{ client.display_name }} {% if billing_status == 'suspended' %}{{ chip('suspended') }}{% else %}{{ chip(client.status) }}{% endif %}</h1>
@@ -20,6 +26,10 @@
     </form>
     <a class="btn" href="/conversations?client={{ client.id }}"><svg class="icon"><use href="#i-msg"/></svg>Conversations</a>
     <a class="btn primary" href="/billing#new-invoice"><svg class="icon"><use href="#i-card"/></svg>Invoice</a>
+    <form method="post" action="/clients/{{ client.id }}/delete" data-confirm="Delete {{ client.display_name }}? This removes its config, content, index, and console records. Invoices are kept. This cannot be undone.">
+      {{ csrf(csrf_token) }}
+      <button class="btn danger" type="submit"><svg class="icon"><use href="#i-trash"/></svg>Delete</button>
+    </form>
   </div>
 </div>
 

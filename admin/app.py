@@ -763,14 +763,21 @@ def client_detail(request: Request, client_id: str):
         if not row:
             raise HTTPException(status_code=404, detail="Client not found.")
         client = dict(row)
+        config_missing = False
         try:
             config = onboarding.read_config(client_id)
         except Exception:
             config = {}
+            config_missing = True
+        try:
+            index = onboarding.index_status(client_id, deep=tab == "content")
+        except Exception:
+            index = {"chunks": 0, "sources": 0, "indexed_at": None, "stale": None}
         ctx.update(
             {
                 "client": client,
                 "config": config,
+                "config_missing": config_missing,
                 "billing_status": str(
                     config.get("billing_status") or "active"
                 ).strip().lower(),
@@ -786,7 +793,7 @@ def client_detail(request: Request, client_id: str):
                 "billing": billing.client_billing(conn, client_id),
                 "plans": billing.list_plans(conn),
                 "content": onboarding.content_files(config) if config else [],
-                "index": onboarding.index_status(client_id, deep=tab == "content"),
+                "index": index,
                 "audit": [
                     dict(item)
                     for item in conn.execute(
@@ -1049,6 +1056,40 @@ def client_content(
                 "Upload saved but reindexing failed. Try Reindex again.",
                 "error",
             )
+
+
+@app.post("/clients/{client_id}/delete")
+def client_delete(request: Request, client_id: str, csrf_token: str = Form("")):
+    with db.db() as conn:
+        session = auth.get_session(request, conn)
+        if not session:
+            raise auth.AuthRequired()
+        _check_csrf(request, session, csrf_token)
+        found = conn.execute(
+            "SELECT id FROM clients WHERE id = ?", (client_id,)
+        ).fetchone()
+        if not found:
+            return _redirect("/clients", conn, session, "Client not found.", "error")
+        try:
+            result = onboarding.delete_client(client_id)
+        except Exception as exc:
+            print(f"[admin] delete failed for {client_id}: {type(exc).__name__}")
+            return _redirect(
+                f"/clients/{client_id}",
+                conn,
+                session,
+                "Could not delete this client. Check the server console for the error type.",
+                "error",
+            )
+        details = (
+            "Config, content, index and console rows removed; "
+            f"{result['invoices_kept']} invoice(s) kept"
+        )
+        if result["problems"]:
+            details += "; cleanup issues: " + ", ".join(result["problems"])
+        _audit(conn, request, "client_deleted", client_id, details)
+        conn.commit()
+        return _redirect("/clients", conn, session, f"{client_id} was deleted.")
 
 
 # ---------------------------------------------------------------------------
