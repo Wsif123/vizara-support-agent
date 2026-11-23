@@ -41,8 +41,8 @@ def git(*args: str, capture: bool = True) -> subprocess.CompletedProcess:
     )
 
 
-def read_client_name(config_path: Path, client_id: str) -> str:
-    """Return the client.name value from the config, or the id as a fallback."""
+def read_client_name(config_path: Path) -> str | None:
+    """Return the client.name value from the config, or None when absent."""
     in_client = False
     for raw_line in config_path.read_text(encoding="utf-8").splitlines():
         line = raw_line.rstrip()
@@ -58,7 +58,7 @@ def read_client_name(config_path: Path, client_id: str) -> str:
             value = match.group(1).strip().strip("'\"")
             if value and value.lower() not in {"null", "~"}:
                 return value
-    return client_id
+    return None
 
 
 def changed_paths() -> list[str]:
@@ -116,12 +116,24 @@ def main(argv: list[str]) -> int:
     if not config_path.is_file():
         fail(f"Config not found: {config_rel}")
 
-    name = read_client_name(config_path, client_id)
-    if not CLIENT_ID_RE.match(name):
+    name = read_client_name(config_path)
+    if name is None:
+        fail(f"No client.name in {config_rel}")
+    if (
+        not name.strip()
+        or name in {".", ".."}
+        or name.startswith(".")
+        or "/" in name
+        or "\\" in name
+    ):
         fail(f"Unsafe client name in {config_rel}: {name!r}")
     data_rel = f"data/{name}"
-    if not (ROOT / data_rel).is_dir():
+    data_path = ROOT / data_rel
+    if not data_path.is_dir():
         fail(f"Data directory not found: {data_rel}")
+
+    print(f"Config: {config_path.resolve()}")
+    print(f"Data:   {data_path.resolve()}")
 
     offending = [path for path in changed_paths() if not is_allowed(path)]
     if offending:
