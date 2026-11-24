@@ -108,11 +108,12 @@ def add_plan(
 def list_subscriptions(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT s.*, c.display_name, c.status AS client_status,
+        SELECT s.*, COALESCE(c.display_name, s.client_id) AS display_name,
+               c.status AS client_status,
                p.name AS plan_name, p.amount_cents, p.currency, p.interval,
                p.setup_fee_cents
         FROM subscriptions s
-        JOIN clients c ON c.id = s.client_id
+        LEFT JOIN clients c ON c.id = s.client_id
         JOIN plans p ON p.id = s.plan_id
         ORDER BY s.id DESC
         """
@@ -155,12 +156,12 @@ def add_subscription(
 def list_invoices(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT i.*, c.display_name,
+        SELECT i.*, COALESCE(c.display_name, i.client_id) AS display_name,
                (SELECT url FROM payment_links pl
                 WHERE pl.invoice_id = i.id AND pl.status = 'active'
                 ORDER BY pl.id DESC LIMIT 1) AS payment_url
         FROM invoices i
-        JOIN clients c ON c.id = i.client_id
+        LEFT JOIN clients c ON c.id = i.client_id
         ORDER BY i.issued_on DESC, i.id DESC
         """
     ).fetchall()
@@ -215,9 +216,10 @@ def add_invoice(
 def invoice(conn: sqlite3.Connection, invoice_id: int) -> dict | None:
     row = conn.execute(
         """
-        SELECT i.*, c.display_name, p.interval
+        SELECT i.*, COALESCE(c.display_name, i.client_id) AS display_name,
+               p.interval
         FROM invoices i
-        JOIN clients c ON c.id = i.client_id
+        LEFT JOIN clients c ON c.id = i.client_id
         LEFT JOIN subscriptions s ON s.id = i.subscription_id
         LEFT JOIN plans p ON p.id = s.plan_id
         WHERE i.id = ?
@@ -334,9 +336,10 @@ def summary(conn: sqlite3.Connection) -> dict:
 def list_payment_links(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT pl.*, c.display_name, i.number AS invoice_number
+        SELECT pl.*, COALESCE(c.display_name, pl.client_id) AS display_name,
+               i.number AS invoice_number
         FROM payment_links pl
-        JOIN clients c ON c.id = pl.client_id
+        LEFT JOIN clients c ON c.id = pl.client_id
         LEFT JOIN invoices i ON i.id = pl.invoice_id
         ORDER BY pl.id DESC
         """
