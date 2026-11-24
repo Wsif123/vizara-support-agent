@@ -1,0 +1,21 @@
+# promote check — client configuration
+# Managed by the Vizara operator console.
+
+client:
+  name: promote-check
+  display_name: promote check
+  domain: null
+  enabled: true
+  source_files:
+  - knowledge.md
+  persona: You are a friendly and helpful support agent for promote check. Answer
+    questions only based on the retrieved context. If the information is not in the
+    context, do not guess — escalate to a human.
+  escalation:
+    email: ''
+    contact_name: promote check
+    message: Sorry, I can't answer that with confidence. Let me get a human from the
+      promote check team to help you out.
+  retrieval:
+    top_k: 6
+    score_threshold: 0.55
