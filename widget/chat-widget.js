@@ -81,7 +81,7 @@
       background: ${SURFACE};
       display: flex; flex-direction: column; gap: 8px;
     }
-    .vizara-msg {
+    #vizara-widget .vizara-msg {
       max-width: 85%; padding: 12px 16px; border-radius: 14px;
       font-size: 14px; line-height: 1.6;
       word-wrap: break-word; overflow-wrap: break-word; word-break: break-word;
@@ -94,6 +94,13 @@
     .vizara-bot {
       align-self: flex-start; background: ${BOT_BG}; color: ${TEXT_PRIMARY};
       border-bottom-left-radius: 4px; border: 1px solid ${BORDER};
+    }
+    #vizara-widget .vizara-msg ul { margin: 6px 0 2px; padding-left: 18px; }
+    #vizara-widget .vizara-msg li { margin: 2px 0; }
+    #vizara-widget .vizara-msg code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px; background: rgba(255,255,255,0.08);
+      border-radius: 4px; padding: 1px 5px;
     }
     .vizara-escalated-tag {
       display: inline-block; margin-top: 6px; padding: 3px 8px;
@@ -132,6 +139,59 @@
   const CHAT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
   const SEND_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
   const CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function formatInline(line) {
+    // Pull code spans out first so their contents are never touched by the
+    // bold/italic passes (e.g. `a **b** c` must stay literal), then restore.
+    const codeSpans = [];
+    const placeheld = line.replace(/`([^`]+?)`/g, function (_, code) {
+      codeSpans.push(code);
+      return "\u0000" + (codeSpans.length - 1) + "\u0000";
+    });
+    const formatted = placeheld
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    return formatted.replace(/\u0000(\d+)\u0000/g, function (_, index) {
+      return "<code>" + codeSpans[Number(index)] + "</code>";
+    });
+  }
+
+  // Minimal markdown for bot replies only: bullets, bold, italic, code.
+  // Everything is escaped before any tag is introduced, so model text such as
+  // "<b>hi</b> & co" stays literal.
+  function formatMessage(text) {
+    const lines = escapeHtml(text).split(/\r?\n/);
+    const blocks = [];
+    let list = null;
+    lines.forEach(function (line) {
+      if (line.indexOf("- ") === 0) {
+        if (!list) { list = []; blocks.push(list); }
+        list.push("<li>" + formatInline(line.slice(2)) + "</li>");
+      } else {
+        list = null;
+        blocks.push(formatInline(line));
+      }
+    });
+
+    let html = "";
+    let first = true;
+    let previousWasList = false;
+    blocks.forEach(function (block) {
+      const isList = Array.isArray(block);
+      if (!first && !isList && !previousWasList) html += "<br>";
+      html += isList ? "<ul>" + block.join("") + "</ul>" : block;
+      first = false;
+      previousWasList = isList;
+    });
+    return html;
+  }
 
   function injectStyles() {
     const el = document.createElement("style");
@@ -245,7 +305,11 @@
     function appendMessage(text, role) {
       const div = document.createElement("div");
       div.className = "vizara-msg " + (role === "user" ? "vizara-user" : "vizara-bot");
-      div.textContent = text;
+      if (role === "user") {
+        div.textContent = text;
+      } else {
+        div.innerHTML = formatMessage(text);
+      }
       messages.appendChild(div);
       messages.scrollTop = messages.scrollHeight;
     }
@@ -253,7 +317,7 @@
     function appendBotMessage(text, escalated) {
       const div = document.createElement("div");
       div.className = "vizara-msg vizara-bot";
-      div.textContent = text;
+      div.innerHTML = formatMessage(text);
       if (escalated) {
         const tag = document.createElement("div");
         tag.className = "vizara-escalated-tag";

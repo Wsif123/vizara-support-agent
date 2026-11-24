@@ -120,6 +120,17 @@ WIDGET_DIR = Path(__file__).parent.parent / "widget"
 if WIDGET_DIR.exists():
     app.mount("/widget", StaticFiles(directory=str(WIDGET_DIR)), name="widget")
 
+
+@app.middleware("http")
+async def _widget_cache_headers(request: Request, call_next):
+    # The widget is embedded by URL on client sites, so a stale cached copy can
+    # keep running old JS after a deploy. "no-cache" forces revalidation (the
+    # ETag from StaticFiles keeps the 304s cheap) instead of a blind reuse.
+    response = await call_next(request)
+    if request.url.path.startswith("/widget/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 # CORS stays wide because the widget is embedded on customer domains; the real
 # per-client origin check happens in the /chat handler. Credentials are off:
 # this API has no cookies or auth, and "*" + credentials is an unsafe pairing.
