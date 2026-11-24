@@ -113,6 +113,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         # sent anything. Treat it like NEEDS_HUMAN so the escalation actually
         # reaches the operator.
         escalation_reason = "no_relevant_context"
+        awaiting_email = False
         if email:
             escalation_msg = (
                 f"Thanks — {contact} has been notified and will personally follow up at {email} "
@@ -128,6 +129,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
             clear_pending(session_id)
         else:
             set_pending(session_id, user_query)
+            awaiting_email = True
             escalation_msg = (
                 f"I don't have that information. Let me connect you with {contact} — "
                 f"could you share your email address so {contact} can follow up with you personally?"
@@ -135,7 +137,12 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
 
         add_message(session_id, "assistant", escalation_msg)
         _log(session_id, client_id, user_query, escalation_msg, True, escalation_reason, retrieved_docs)
-        return {"answer": escalation_msg, "escalated": True, "escalation_reason": escalation_reason}
+        return {
+            "answer": escalation_msg,
+            "escalated": True,
+            "escalation_reason": escalation_reason,
+            "awaiting_email": awaiting_email,
+        }
 
     context_text = "\n\n".join(
         [f"[Source: {d['metadata'].get('source', 'unknown')}]\n{d['text']}" for d in relevant_docs]
@@ -169,6 +176,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
 
     pending_question = get_pending(session_id)
     escalation_reason = "llm_unavailable" if llm_error else "needs_human"
+    awaiting_email = False
 
     # If we were waiting for an email and the customer supplied one, escalate
     # now even if this follow-up message itself looks answerable/off-topic.
@@ -215,6 +223,7 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
         clear_pending(session_id)
     else:
         set_pending(session_id, user_query)
+        awaiting_email = True
         if llm_error:
             escalation_msg = (
                 "Our assistant is having a moment — let me get a human on this. "
@@ -228,4 +237,9 @@ def answer(session_id: str, user_query: str, client_id: str) -> dict:
 
     add_message(session_id, "assistant", escalation_msg)
     _log(session_id, client_id, user_query, escalation_msg, True, escalation_reason, relevant_docs)
-    return {"answer": escalation_msg, "escalated": True, "escalation_reason": escalation_reason}
+    return {
+        "answer": escalation_msg,
+        "escalated": True,
+        "escalation_reason": escalation_reason,
+        "awaiting_email": awaiting_email,
+    }

@@ -166,6 +166,7 @@ class ChatResponse(BaseModel):
     answer: str
     escalated: bool = False
     escalation_reason: str | None = None
+    awaiting_email: bool = False
 
 
 @app.get("/health", include_in_schema=False)

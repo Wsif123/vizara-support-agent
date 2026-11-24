@@ -229,7 +229,7 @@
           var answer = res.data && res.data.answer;
           appendBotMessage(
             typeof answer === "string" && answer ? answer : "Sorry, something went wrong. Please try again.",
-            !!(res.data && res.data.escalated)
+            !!(res.data && res.data.escalated) && !(res.data && res.data.awaiting_email)
           );
         })
         .catch(function () {
