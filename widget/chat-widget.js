@@ -108,8 +108,13 @@
       font-size: 12px; font-weight: 500;
     }
     #vizara-input-area {
-      display: flex; gap: 8px; padding: 12px 14px;
+      padding: 12px 0 0;
       border-top: 1px solid ${BORDER}; background: ${VOID_BLACK};
+    }
+    #vizara-input-row { display: flex; gap: 8px; padding: 0 14px 12px; }
+    #vizara-privacy {
+      font-size: 11px; color: ${TEXT_SECONDARY};
+      padding: 0 14px 10px; line-height: 1.4;
     }
     #vizara-input {
       flex: 1; padding: 10px 14px; border: 1px solid ${BORDER}; border-radius: 24px;
@@ -217,8 +222,11 @@
           '<div class="vizara-msg vizara-bot">' + GREETING + '</div>' +
         '</div>' +
         '<div id="vizara-input-area">' +
-          '<input id="vizara-input" type="text" maxlength="2000" placeholder="Type your question..." />' +
-          '<button id="vizara-send" title="Send">' + SEND_ICON + '</button>' +
+          '<div id="vizara-input-row">' +
+            '<input id="vizara-input" type="text" maxlength="2000" placeholder="Type your question..." />' +
+            '<button id="vizara-send" title="Send">' + SEND_ICON + '</button>' +
+          '</div>' +
+          '<div id="vizara-privacy">Messages may be stored and reviewed by ' + BRAND_NAME + '.</div>' +
         '</div>' +
       '</div>' +
       '<div id="vizara-bubble" title="Chat with us">' + CHAT_ICON + '</div>';
