@@ -102,6 +102,15 @@
       font-size: 12.5px; background: rgba(255,255,255,0.08);
       border-radius: 4px; padding: 1px 5px;
     }
+    #vizara-widget .vizara-msg table {
+      display: block; overflow-x: auto;
+      border-collapse: collapse; width: 100%; margin: 6px 0;
+    }
+    #vizara-widget .vizara-msg th, #vizara-widget .vizara-msg td {
+      border: 1px solid ${BORDER}; padding: 4px 6px; text-align: left; font-size: 12px;
+      white-space: nowrap;
+    }
+    #vizara-widget .vizara-msg th { background: ${SURFACE_LIGHT}; }
     .vizara-escalated-tag {
       display: inline-block; margin-top: 6px; padding: 3px 8px;
       background: rgba(255, 179, 0, 0.15); color: #fbbf24; border-radius: 6px;
@@ -168,32 +177,63 @@
     });
   }
 
-  // Minimal markdown for bot replies only: bullets, bold, italic, code.
+  // Split a markdown table row into cells: trim each, drop the empty leading
+  // and trailing piece left by the outer pipes, and format each cell inline.
+  function tableCells(line, tag) {
+    const cells = line.split("|");
+    if (cells.length && cells[0].trim() === "") cells.shift();
+    if (cells.length && cells[cells.length - 1].trim() === "") cells.pop();
+    return cells.map(function (cell) {
+      return "<" + tag + ">" + formatInline(cell.trim()) + "</" + tag + ">";
+    }).join("");
+  }
+
+  function tableHtml(headerCells, rows) {
+    return "<table><thead><tr>" + headerCells + "</tr></thead><tbody>" +
+      rows.map(function (row) { return "<tr>" + row + "</tr>"; }).join("") +
+      "</tbody></table>";
+  }
+
+  // Minimal markdown for bot replies only: tables, bullets, bold, italic, code.
   // Everything is escaped before any tag is introduced, so model text such as
   // "<b>hi</b> & co" stays literal.
   function formatMessage(text) {
     const lines = escapeHtml(text).split(/\r?\n/);
     const blocks = [];
     let list = null;
-    lines.forEach(function (line) {
-      if (line.indexOf("- ") === 0) {
-        if (!list) { list = []; blocks.push(list); }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const next = lines[i + 1];
+
+      // A table is a "|" line followed by a "|---|" separator line. The
+      // separator is dropped; the first line becomes the header row.
+      if (line.indexOf("|") === 0 && next !== undefined && /^\|[\s:|-]+\|$/.test(next)) {
+        const rows = [];
+        i += 2;
+        while (i < lines.length && lines[i].indexOf("|") === 0) {
+          rows.push(tableCells(lines[i], "td"));
+          i++;
+        }
+        i--; // the outer loop's i++ resumes at the first non-table line
+        list = null;
+        blocks.push({ kind: "table", html: tableHtml(tableCells(line, "th"), rows) });
+      } else if (line.indexOf("- ") === 0) {
+        if (!list) { list = []; blocks.push({ kind: "list", items: list }); }
         list.push("<li>" + formatInline(line.slice(2)) + "</li>");
       } else {
         list = null;
-        blocks.push(formatInline(line));
+        blocks.push({ kind: "text", html: formatInline(line) });
       }
-    });
+    }
 
     let html = "";
-    let first = true;
-    let previousWasList = false;
+    let previousKind = null;
     blocks.forEach(function (block) {
-      const isList = Array.isArray(block);
-      if (!first && !isList && !previousWasList) html += "<br>";
-      html += isList ? "<ul>" + block.join("") + "</ul>" : block;
-      first = false;
-      previousWasList = isList;
+      if (previousKind === "text" && block.kind === "text") html += "<br>";
+      if (block.kind === "list") html += "<ul>" + block.items.join("") + "</ul>";
+      else html += block.html;
+      previousKind = block.kind;
     });
     return html;
   }

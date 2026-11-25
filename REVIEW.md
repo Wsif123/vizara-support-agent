@@ -4,6 +4,9 @@
 - Keep Chroma; do not upgrade.
 - Postgres (Neon) is the transcript store.
 - One worker only.
+- score_threshold stays at 0.5. Off-topic questions get a polite decline from
+  the LLM classifier, not an escalation. Raising the threshold to ~0.66 would
+  reject four probes but turn 'do you do welding' into a human escalation.
 
 ## Item 4.1. Promote script
 Create scripts/promote_client.py:
