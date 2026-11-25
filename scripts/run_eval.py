@@ -28,6 +28,49 @@ def check_keywords(text: str, keywords: list[str]) -> bool:
     return any(kw.lower() in text_lower for kw in keywords)
 
 
+VALID_EXPECT = {"answerable", "off_topic", "needs_human"}
+
+
+def grade(item: dict, response: str, escalated: bool) -> tuple[bool, str]:
+    """Decide pass/fail for one eval case, returning (passed, reason).
+
+    `expect` is the three-way contract; `must_escalate` stays as a fallback for
+    older case files that don't carry one yet.
+    """
+    expect = item.get("expect")
+    if expect is not None:
+        if expect not in VALID_EXPECT:
+            raise ValueError(f"unknown expect value: {expect!r}")
+        if expect == "answerable":
+            if escalated:
+                return False, "escalated an answerable question"
+            return True, "answered without escalation"
+        if expect == "off_topic":
+            if escalated:
+                return False, "escalated instead of declining"
+            if "email" in response.lower():
+                return False, "declined but asked for an email"
+            return True, "declined without escalating or asking for an email"
+        # needs_human
+        if escalated:
+            return True, "correctly escalated"
+        return False, "should have escalated but didn't"
+
+    # Legacy fallback for cases without `expect`.
+    must_escalate = item.get("must_escalate", False)
+    expected_kws = item.get("expected_keywords", [])
+    if must_escalate:
+        if escalated:
+            return True, "correctly escalated (must_escalate fallback)"
+        return False, "should have escalated but didn't"
+    if escalated:
+        return False, "escalated when it shouldn't have"
+    if expected_kws and not check_keywords(response, expected_kws):
+        return False, f"none of expected keywords found: {expected_kws}"
+    return True, "answered without escalation (must_escalate fallback)"
+
+
+
 def run():
     eval_set = load_eval_set()
 
@@ -41,8 +84,7 @@ def run():
 
     for i, item in enumerate(eval_set, 1):
         q = item["question"]
-        expected_kws = item.get("expected_keywords", [])
-        must_escalate = item.get("must_escalate", False)
+        expect = item.get("expect")
         # Fresh session per case: sharing one session let earlier answers leak
         # into later prompts via the 10-message history.
         session_id = f"eval-{uuid.uuid4().hex[:8]}"
@@ -57,31 +99,22 @@ def run():
 
             print(f"   A: {response[:200]}...")
             print(f"   Escalated: {escalated}")
-
-            if must_escalate:
-                if escalated:
-                    print(f"   ✓ CORRECT — correctly escalated")
-                    passed += 1
-                    status = "PASS"
-                else:
-                    print(f"   ✗ FAIL — should have escalated but didn't")
-                    failed += 1
-                    status = "FAIL"
+            if expect:
+                print(f"   Expect: {expect}")
             else:
-                if escalated:
-                    print(f"   ✗ FAIL — escalated when it shouldn't have")
-                    failed += 1
-                    status = "FAIL"
-                elif expected_kws and not check_keywords(response, expected_kws):
-                    print(f"   ✗ FAIL — none of expected keywords found: {expected_kws}")
-                    failed += 1
-                    status = "FAIL"
-                else:
-                    print(f"   ✓ PASS")
-                    passed += 1
-                    status = "PASS"
+                print(f"   Expect: (fallback) must_escalate={item.get('must_escalate', False)}")
 
-            results.append({"question": q, "status": status, "escalated": escalated})
+            ok, reason = grade(item, response, escalated)
+            if ok:
+                print(f"   ✓ PASS — {reason}")
+                passed += 1
+                status = "PASS"
+            else:
+                print(f"   ✗ FAIL — {reason}")
+                failed += 1
+                status = "FAIL"
+
+            results.append({"question": q, "expect": expect, "status": status, "escalated": escalated})
 
         except Exception as e:
             print(f"   ✗ ERROR — {e}")
