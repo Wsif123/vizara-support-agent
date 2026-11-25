@@ -5,13 +5,21 @@ Vizara Studio also builds custom AI chatbots for business websites. Each chatbot
 
 ## Pricing
 
-### Vizara Chatbot Service — $90/month (+ $150 one-time setup)
-- Up to ~40 pages/FAQ worth of content
-- Fully brand-matched widget (colors, fonts, positioning)
-- Custom persona/tone tuning
-- Priority handling on content updates
-- Monthly usage summary (conversation volume, common questions)
-- Delivery: 3–5 business days from form submission to live bot
+Three plans, billed monthly. Every plan includes a fully brand-matched widget
+(colors, fonts, positioning), custom persona/tone tuning, priority handling on
+content updates, a monthly usage summary (conversation volume, common
+questions), and 3–5 business day delivery from form submission to live bot.
+
+| Plan | Monthly price | One-time setup | Included conversations |
+| --- | --- | --- | --- |
+| Starter | $149/month | $500 | 500 conversations per month |
+| Growth | $249/month | $750 | 2,000 conversations per month |
+| Scale | $399/month | $1,500 | 6,000 conversations per month |
+
+Conversations are counted monthly. Usage above the number of conversations
+included in the plan is billed as overage.
+
+Annual billing is available at 15% off the monthly price.
 
 ## How it works
 1. Client fills out a short onboarding form with their business info, FAQs, pricing, and preferred tone.
@@ -47,7 +55,7 @@ The chatbot is currently a website widget only. It does not currently integrate 
 The chatbot answers policy, pricing, FAQ, and product-info questions accurately based on what it's trained on. It does not have access to live order tracking or real-time inventory, cannot place orders or process payments, and does not currently support languages other than English or platforms other than a website widget.
 
 ## Custom / Negotiated Pricing
-Special offers or custom pricing arrangements (e.g. annual upfront discounts) may be available on a case-by-case basis. These are not fixed and should always be escalated to Wasif directly rather than answered automatically.
+Special offers or custom pricing arrangements beyond the three published plans may be available on a case-by-case basis. These are not fixed and should always be escalated to Wasif directly rather than answered automatically.
 
 ## What happens if a client wants a fully custom, self-hosted bot instead
 The Vizara Chatbot Service is a hosted subscription, not a custom handover. A fully custom, self-owned chatbot with source code delivered would be a separate, much higher-cost one-time project — clients interested in this should be escalated to speak with Wasif directly.
