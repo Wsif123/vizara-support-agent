@@ -401,8 +401,12 @@ The console stays on the operator PC. Its SQLite database and encryption key are
 
 Full runbook: **`PAYMENTS.md`**.
 
-- **Recommended international provider:** Lemon Squeezy (merchant of record; subscriptions; global tax handled; payouts to Pakistan). Fees: 5% + 50¢, plus 1.5% international and 0.5% subscription.
-- **Optional Pakistan gateway:** Safepay (2.9% + Rs 30 domestic, +0.3% international).
+- **Recommended international provider:** Paddle (merchant of record; software only; global tax handled; pays out to Pakistan). Fees: **5% + 50¢** per transaction, with no separate international or subscription surcharge.
+- **Fallbacks:** Polar and Dodo Payments, both merchants of record on comparable
+  percentage-plus-fixed-fee terms — confirm their current rates and Pakistan payout rail
+  before committing.
+- **Domestic Pakistan option:** Safepay (2.9% + Rs 30 domestic, +0.3% international).
+- **Lemon Squeezy is out:** it closed to new stores on 16 Nov 2026 and stops processing on 31 Mar 2027. Any existing store must be migrated before that date.
 - **Stripe is not available** for Pakistan-based businesses.
 - **v1 workflow:** create a hosted checkout/payment link at the provider, paste it into the console invoice, send it to the client, then mark the invoice paid when the money arrives. Recording payment extends the subscription one period.
 - **No card data** is collected or stored. The console only stores the link URL, provider name, amount, and status.

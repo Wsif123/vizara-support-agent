@@ -6,6 +6,10 @@ How to take money for the chatbot service from Pakistan, without touching card d
 soon as a provider account is approved. No card numbers, CVVs, or bank credentials are stored
 in this repo or in the console.
 
+> **Provider change (November 2026).** Lemon Squeezy closed to new stores on **16 Nov 2026**
+> and stops processing on **31 Mar 2027**. It is no longer the recommendation; **Paddle** is.
+> Any Lemon Squeezy store still in use must be migrated before 31 March 2027.
+
 ---
 
 ## 1. What v1 does — and what it does not
@@ -13,7 +17,8 @@ in this repo or in the console.
 **Does:**
 
 - Tracks plans, subscriptions, invoices, and payment status in the local console.
-- Stores a hosted checkout/payment-link URL per invoice (Lemon Squeezy, Safepay, or manual).
+- Stores a hosted checkout/payment-link URL per invoice (Paddle, Polar, Dodo Payments,
+  Safepay, or manual).
 - Lets you mark an invoice paid and extends the subscription by one billing period.
 - Exports invoices and clients to CSV for accounting.
 - Keeps an audit trail of billing changes.
@@ -33,22 +38,29 @@ leaving room to automate later.
 
 ## 2. Provider comparison
 
-| | **Lemon Squeezy** (recommended for international) | **Safepay** (optional for Pakistan) |
-|---|---|---|
-| Type | Merchant of record (MoR) | Payment gateway |
-| Who handles sales tax/VAT | Lemon Squeezy | You |
-| Best for | International clients, subscriptions, global tax | Pakistani cards, wallets, bank transfers |
-| Pricing | 5% + 50¢ per transaction; +1.5% international; +0.5% subscription | ~2.9% + Rs 30 domestic; +0.3% international cards |
-| Payouts | To Pakistan bank account (confirm rail during onboarding) | To Pakistani business bank account |
-| Subscriptions | Native | Supported; confirm current product limits |
-| Hosted checkout links | Yes | Yes |
-| Chargebacks | MoR handles/disputes | You handle |
-| Setup difficulty | Low | Medium (business KYC, sandbox) |
+| | **Paddle** (recommended) | **Polar** (fallback) | **Dodo Payments** (fallback) | **Safepay** (domestic) |
+|---|---|---|---|---|
+| Type | Merchant of record (MoR) | Merchant of record | Merchant of record | Payment gateway |
+| Who handles sales tax/VAT | Paddle | Polar | Dodo | You |
+| Best for | International SaaS, subscriptions, global tax | Indie software, simple MoR onboarding | Software with Asia-focused payouts | Pakistani cards, wallets, bank transfers |
+| Pricing | 5% + 50¢ per transaction | ~4% + 40¢ (confirm current rate) | ~4% + 40¢ (confirm current rate) | ~2.9% + Rs 30 domestic; +0.3% international cards |
+| Payouts to Pakistan | Yes | Confirm rail and eligibility before you commit | Offered; confirm merchant country and rail | To Pakistani business bank account |
+| Subscriptions | Native | Native | Native | Supported; confirm current product limits |
+| Hosted checkout links | Yes | Yes | Yes | Yes |
+| Chargebacks | MoR handles/disputes | MoR handles | MoR handles | You handle |
+| Setup difficulty | Medium (business review) | Low | Low–medium | Medium (business KYC, sandbox) |
 
-**Recommendation:** start with **Lemon Squeezy** for a single international checkout experience
-and tax handling. Add **Safepay** when a Pakistani client wants to pay in PKR through a local
-card/wallet/bank. You can run both; keep the console plan price in USD and note the actual
-settlement currency.
+**Recommendation:** **Paddle** for international clients. It is an MoR on standard terms,
+accepts Pakistan-based sellers, pays out to Pakistani banks, and its **5% + 50¢** is
+all-in — no separate international or subscription surcharge. Polar and Dodo Payments are
+fallbacks if Paddle declines the store or its review drags; check their payout rail to
+Pakistan before quoting a client, since that is the part that changes. Add **Safepay** when a
+Pakistani client wants to pay in PKR through a local card/wallet/bank.
+
+> **Paddle sells software only.** Its acceptable-use policy covers software and digital
+> products, which fits the chatbot subscription. Do **not** route video-ad or product-photo
+> work through Paddle — those are services. Keep the console plan price in USD and note the
+> actual settlement currency.
 
 > **Stripe is not available to Pakistan-based businesses.** Do not build the flow around it.
 > PayPal receiving is also limited in Pakistan; do not promise PayPal checkout.
@@ -60,77 +72,89 @@ confirm the current schedule in each provider's dashboard before quoting a clien
 
 ## 3. Cost examples
 
-Assumes the seeded plan: **$90/month + $150 one-time setup**.
+Assumes the **Starter** plan: **$149/month + $500 one-time setup**. Growth ($249/$750) and
+Scale ($399/$1,500) use exactly the same fee math.
 
-### Lemon Squeezy (international card, subscription)
+### Paddle (international card, subscription)
 
 | Charge | Calculation | Fee | Net |
 |---|---|---|---|
-| $90 monthly | 5% ($4.50) + $0.50 + 1.5% ($1.35) + 0.5% ($0.45) | **$6.80** | **$83.20** |
-| $150 setup | 5% ($7.50) + $0.50 + 1.5% ($2.25) | **$10.25** | **$139.75** |
-| $240 first payment (combined) | 5% ($12.00) + $0.50 + 1.5% ($3.60) + 0.5% ($1.20) | **$17.30** | **$222.70** |
+| $149 monthly | 5% ($7.45) + $0.50 | **$7.95** | **$141.05** |
+| $500 setup | 5% ($25.00) + $0.50 | **$25.50** | **$474.50** |
+| $649 first payment (one combined charge) | 5% ($32.45) + $0.50 | **$32.95** | **$616.05** |
 
-The 0.5% subscription fee applies to recurring charges, not the one-time setup.
+There is no extra international or subscription percentage on top. If you invoice the setup
+fee and the first month as two separate charges, you pay the 50¢ twice ($33.45 combined).
 
 ### Safepay (Pakistan, illustrative FX at Rs 280/USD)
 
 | Charge | Calculation | Fee (PKR) | Fee (USD) | Net (USD) |
 |---|---|---|---|---|
-| $90 ≈ Rs 25,200 | 2.9% + Rs 30 + 0.3% international | Rs 836 | ~$2.99 | ~$87.01 |
-| $150 ≈ Rs 42,000 | 2.9% + Rs 30 + 0.3% international | Rs 1,374 | ~$4.91 | ~$145.09 |
-| $240 ≈ Rs 67,200 | 2.9% + Rs 30 + 0.3% international | Rs 2,180 | ~$7.79 | ~$232.21 |
+| $149 ≈ Rs 41,720 | 2.9% + Rs 30 + 0.3% international | Rs 1,365 | ~$4.88 | ~$144.12 |
+| $500 ≈ Rs 140,000 | 2.9% + Rs 30 + 0.3% international | Rs 4,510 | ~$16.11 | ~$483.89 |
+| $649 ≈ Rs 181,720 | 2.9% + Rs 30 + 0.3% international | Rs 5,845 | ~$20.88 | ~$628.12 |
 
 Domestic Pakistani cards skip the extra 0.3%. Safepay settles in PKR; the USD equivalent
 depends on the FX rate and any conversion spread. Decide whether to quote Pakistani clients in
 PKR or USD before you send the first link.
 
-**Rule of thumb:** Lemon Squeezy costs a little more but removes tax/subscription/chargeback
+**Rule of thumb:** Paddle costs a little more but removes tax/subscription/chargeback
 work. Safepay is cheaper domestically but leaves tax and disputes with you.
 
 ---
 
-## 4. Lemon Squeezy setup runbook
+## 4. Paddle setup runbook
 
 ### 4.1 Create and verify the account
 
-1. Go to <https://www.lemonsqueezy.com> and create an account with a business email you control.
+1. Go to <https://www.paddle.com> and create a seller account with a business email you
+   control.
 2. Verify the email and enable two-factor authentication.
-3. Complete the store profile: store name (Vizara), country (Pakistan), currency (USD),
-   support email, and the website URL.
-4. Add payout details (Pakistani bank account). The dashboard will show the exact rail and any
-   minimum payout; complete KYC/tax forms before expecting money.
-5. Read the MoR terms so you can explain to clients that Lemon Squeezy is the seller of record
-   and handles sales tax on the transaction.
+3. Complete the business profile: legal entity/sole proprietor, country (Pakistan), payout
+   currency, support email, and the website URL. Paddle reviews the store and the product
+   before it goes live — expect questions about what the chatbot is and who buys it.
+4. Add payout details (Pakistani bank account). Complete KYC/tax forms before expecting money.
+5. Read the MoR terms so you can explain to clients that Paddle is the seller of record and
+   handles sales tax on the transaction.
 
 ### 4.2 Create the products
 
-Create two products (or three if you want a combined first payment):
+Create one subscription product per tier, plus one setup product per tier (or a single
+one-time setup product per tier if you prefer per-plan pricing):
 
 | Product | Type | Price | Notes |
 |---|---|---|---|
-| Chatbot Starter | Subscription | $90 / month | Recurring; 0.5% subscription fee applies |
-| Chatbot Setup | One-time | $150 | Onboarding/build fee |
-| Optional: Chatbot First Month + Setup | One-time | $240 | Only if you do **not** also send the $90 subscription link for month one |
+| Chatbot Starter | Subscription | $149 / month | 500 conversations/month |
+| Chatbot Setup — Starter | One-time | $500 | Onboarding/build fee |
+| Chatbot Growth | Subscription | $249 / month | 2,000 conversations/month |
+| Chatbot Setup — Growth | One-time | $750 | |
+| Chatbot Scale | Subscription | $399 / month | 6,000 conversations/month |
+| Chatbot Setup — Scale | One-time | $1,500 | |
 
-For each product, add a short description and a clear refund policy. Keep the name/price in
-sync with the console plan.
+Optional, only if you do **not** also send the monthly subscription link for month one: a
+combined first-payment product at plan price + setup ($649 / $999 / $1,899).
+
+Paddle charges per transaction, so separate setup and monthly links cost one extra 50¢
+compared with a single combined charge. For each product, add a short description and a clear
+refund policy, and keep the name/price in sync with the console plan.
 
 ### 4.3 Get the checkout links
 
-1. Open the product → **Share** / **Checkout links**.
-2. Copy the hosted checkout URL. It looks like
-   `https://<store>.lemonsqueezy.com/checkout/buy/<uuid>`.
-3. Use **test mode** first. Run a test purchase with a test card, confirm the receipt and the
-   order appears in the dashboard, then refund/cancel the test order.
-4. Switch to live mode and copy the **live** link. Do not send a test link to a client.
+1. Open the product (or **Checkout** → **Payment links**) in the Paddle dashboard.
+2. Copy the hosted checkout URL, or generate a payment link for the price.
+3. Use the **sandbox** first. Run a test purchase with a test card, confirm the receipt and
+   the transaction appears, then refund/cancel the test transaction.
+4. Switch to live and copy the **live** link. Do not send a sandbox link to a client.
 
-If you need the client's email prefilled, Lemon Squeezy checkout links support query
-parameters (for example `?checkout[email]=...`). Keep it simple in v1: send the plain link.
+If you need the client's email prefilled, Paddle checkout links support query parameters
+(for example `?customer[email]=...`). Keep it simple in v1: send the plain link.
 
 ### 4.4 Attach the link in the console
 
 1. Open **Billing → New payment link**.
-2. Choose provider **Lemon Squeezy**, kind **checkout** or **subscription**, paste the live URL.
+2. Choose provider **Other** — the dropdown still lists Lemon Squeezy and Safepay only — and
+   put `paddle` in the link label so the ledger stays readable. Kind **checkout**, paste the
+   live URL.
 3. Optionally attach it to an invoice and set the amount.
 4. The URL must start with `https://`. `javascript:` and malformed URLs are rejected.
 5. Open **Billing → Invoices → Add link** if you prefer to attach it directly to an invoice.
@@ -138,16 +162,17 @@ parameters (for example `?checkout[email]=...`). Keep it simple in v1: send the 
 ### 4.5 Collect and reconcile
 
 1. Send the client the invoice and the checkout link (email/WhatsApp/your normal channel).
-2. The client pays on Lemon Squeezy's page; they get a receipt from the provider.
-3. When the order/payout appears in the Lemon Squeezy dashboard, open the invoice in the
-   console and **Record payment**: method `lemonsqueezy`, date, optional note/reference.
+2. The client pays on Paddle's page; they get a receipt from the provider.
+3. When the transaction/settlement appears in the Paddle dashboard, open the invoice in the
+   console and **Record payment**: method `other` with `paddle <transaction id>` in the note
+   (the method list predates Paddle), plus the date.
 4. Recording payment extends the linked subscription one period. Confirm the new period end.
 5. If the client pays the setup fee and subscription separately, record each invoice/payment
    separately so the ledger matches the provider.
 
 ### 4.6 Monthly routine
 
-- Export the Lemon Squeezy orders/payouts CSV.
+- Export the Paddle transactions/payouts CSV.
 - Match each payout to console invoices; investigate anything unpaid after 7 days.
 - Back up `admin/admin.db` after billing changes.
 - Keep provider payout statements with your income-tax records.
@@ -188,7 +213,7 @@ each month and keep the console subscription on manual renewal.
    is in USD.
 4. Keep the Safepay settlement report with your tax records.
 
-### 5.4 Important differences from Lemon Squeezy
+### 5.4 Important differences from Paddle
 
 - Safepay is **not** a merchant of record. You are the seller; sales tax, refunds, and
   chargebacks are your responsibility.
@@ -200,7 +225,8 @@ each month and keep the console subscription on manual renewal.
 
 ## 6. Console invoice workflow (the happy path)
 
-1. **Plan:** Billing → Plans → confirm **Chatbot Starter** is $90/month + $150 setup.
+1. **Plan:** Billing → Plans → confirm the published plan (e.g. **Chatbot Starter** at
+   $149/month + $500 setup).
 2. **Client + subscription:** create the client (or open an existing one) → Billing tab →
    create subscription (status `active` or `trial`, start date, period end).
 3. **Invoice:** Billing → New invoice → choose client/subscription. Check **Add one-time setup
@@ -227,7 +253,7 @@ the provider shows a pending/failed state, do not mark it paid.
 
 ### Client paid twice
 
-Refund the duplicate in the provider dashboard (Lemon Squeezy) or Safepay dashboard. Mark the
+Refund the duplicate in the provider dashboard (Paddle, Polar, Dodo, or Safepay). Mark the
 duplicate invoice `void`, and add a note with the refund reference. Do not silently delete the
 invoice.
 
@@ -250,15 +276,18 @@ invoice.
 
 ### Chargeback
 
-Lemon Squeezy (MoR) handles the dispute process; provide order/usage evidence. With Safepay,
-respond through the gateway with the same evidence. Pause the client until resolved.
+With Paddle (MoR), Paddle handles the dispute process; provide order/usage evidence. Same for
+Polar and Dodo. With Safepay, respond through the gateway with the same evidence. Pause the
+client until resolved.
 
 ---
 
 ## 8. Tax and Pakistan notes (not legal advice)
 
-- **Lemon Squeezy as MoR** collects and remits sales tax/VAT/GST on eligible transactions and
-  issues receipts. You still have Pakistan income-tax obligations on your net earnings.
+- **Paddle as MoR** collects and remits sales tax/VAT/GST on eligible transactions and issues
+  receipts. You still have Pakistan income-tax obligations on your net earnings.
+- **Polar and Dodo** are also MoRs; confirm which markets and taxes each covers for your store
+  before relying on them.
 - **Safepay** leaves sales-tax determination and remittance to you. Ask an accountant how
   exported services and local sales tax apply to your business.
 - Keep: provider payout statements, invoices, bank credits, FX rates, and proof of service
@@ -282,16 +311,21 @@ to automate, use one of these:
    writes to the same Postgres database.
 3. **Provider → email → manual** — keep v1 manual; zero new infrastructure.
 
-### Lemon Squeezy events to handle
+### Paddle events to handle
 
-`order_created`, `subscription_created`, `subscription_updated`, `subscription_cancelled`,
-`subscription_payment_success`, `subscription_payment_failed`,
-`subscription_payment_refunded`.
+`transaction.completed`, `transaction.payment_failed`, `subscription.created`,
+`subscription.updated`, `subscription.canceled`, `adjustment.created` (refunds/credits).
 
-Verify the `X-Signature` header with the signing secret over the **raw** request body. Use the
-event ID/order ID as an idempotency key. Map to the console invoice/subscription using metadata
-you set when creating the checkout (`client_id`, `invoice_id`) — never trust an amount or client
-ID supplied only by the browser.
+Verify the `Paddle-Signature` header (HMAC over the raw body with the notification secret).
+Use the event ID as an idempotency key and match records by the `custom_data` you set on the
+checkout (`client_id`, `invoice_id`) — never trust an amount or client ID supplied only by the
+browser.
+
+### Polar and Dodo events
+
+Both offer signed webhook deliveries with their own signature headers and event names. Verify
+with the scheme documented in your account, store the raw payload, and reconcile by
+transaction/order ID. Test in their sandbox first.
 
 ### Safepay events
 
@@ -314,10 +348,10 @@ the raw event, and reconcile by transaction ID. Test in sandbox first.
 - **Never paste provider API secret keys, bank credentials, or card data into the console.**
   The console only needs the hosted checkout URL.
 - Use hosted provider pages for all card entry. The console and bot never see card numbers.
-- Enable 2FA on Lemon Squeezy, Safepay, email, and bank accounts.
-- Verify the link domain before sending: `lemonsqueezy.com` or `safepay.com` (or the exact
-  domain shown in your provider dashboard). The console accepts any `http(s)` URL, so operator
-  discipline is the control.
+- Enable 2FA on Paddle, Polar, Dodo, Safepay, email, and bank accounts.
+- Verify the link domain before sending: the exact checkout domain shown in your provider
+  dashboard (for Paddle that is normally `paddle.com` / `pay.paddle.io`). The console accepts
+  any `http(s)` URL, so operator discipline is the control.
 - Do not click payment/provider links in unexpected emails; open the dashboard directly.
 - Keep `admin/admin.db`, `admin/.secret.key`, and backups off GitHub and out of shared folders.
 - Export CSVs only to a trusted local folder; they contain client contact data, not card data.
@@ -327,10 +361,11 @@ the raw event, and reconcile by transaction ID. Test in sandbox first.
 
 ## 11. Go-live checklist
 
-- [ ] Lemon Squeezy account approved; payout bank account verified; 2FA on
-- [ ] Products created: $90/month subscription and $150 one-time setup
-- [ ] Test-mode purchase completed, receipt checked, test order refunded/cancelled
-- [ ] Live checkout link copied (not the test link)
+- [ ] Paddle seller account approved; payout bank account verified; 2FA on
+- [ ] Products created: subscription per tier and one-time setup per tier
+- [ ] Sandbox purchase completed, receipt checked, test transaction refunded/cancelled
+- [ ] Live checkout link copied (not the sandbox link)
+- [ ] Fallback (Polar or Dodo) account created only if Paddle review is blocked
 - [ ] Safepay sandbox tested (only if offering Pakistan checkout)
 - [ ] Console plan matches provider price and currency
 - [ ] Invoice `INV-2026-0001` (or next number) created for the first client
@@ -347,22 +382,24 @@ the raw event, and reconcile by transaction ID. Test in sandbox first.
 
 | Symptom | Fix |
 |---|---|
-| Checkout page says test mode | You copied the test link. Copy the live link from the provider dashboard and update the payment link in the console |
+| Checkout page says test/sandbox mode | You copied the sandbox link. Copy the live link from the provider dashboard and update the payment link in the console |
 | Client paid, console invoice still `sent` | Confirm the payment in the provider dashboard, then **Record payment**. Do not ask the client to pay again |
-| Wrong amount on the invoice | Void it before payment and create a new one. If already paid, refund/adjust in the provider dashboard and keep a note |
+| Paddle store stuck in review | Answer the product questions (what it does, who buys it, that it is software). If it is declined because the product is a service, keep the chatbot on Paddle and bill services another way |
 | Payout not received | Complete KYC/tax forms, confirm the bank account name matches, check the provider's payout minimum/schedule |
 | Link rejected by the console | It must be a full `http://` or `https://` URL. `javascript:` and relative URLs are rejected |
 | Safepay link won't recur | Use a fresh payment link each month or enable subscriptions on your Safepay account; do not assume a one-time link recurs |
 | Currency mismatch | The console ledger is USD by default. Record the actual PKR amount and FX rate in the invoice/payment notes |
 | Client disputes the charge | Use the provider dashboard; keep the invoice, chat logs, and delivery evidence. Pause the client if needed |
-| Webhook (future) not arriving | The receiver must be public HTTPS, return 2xx, use the correct signing secret, and read the raw body before JSON parsing |
+| Lemon Squeezy store still live | Migrate before 31 Mar 2027. New stores cannot be created since 16 Nov 2026 |
 
 ---
 
 ## 13. What to do first
 
-1. Create the Lemon Squeezy account and start verification (it can take time).
+1. Create the Paddle seller account and start verification (business review can take time).
 2. While waiting, use the console ledger with **manual** payment links for any pilot client.
-3. Once approved, create the two products, test in test mode, then send the first live link.
-4. Add Safepay only when a client asks for a local Pakistani payment method.
-5. Automate webhooks only after the manual flow has run cleanly for a full billing cycle.
+3. Once approved, create the products, test in sandbox, then send the first live link.
+4. If Paddle declines the store, open a Polar or Dodo Payments account and repeat the same
+   product/link steps — only the dashboard changes, not the console workflow.
+5. Add Safepay only when a client asks for a local Pakistani payment method.
+6. Automate webhooks only after the manual flow has run cleanly for a full billing cycle.
