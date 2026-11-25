@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import chip, csrf %}
 {% block content %}
-{% set lemon_links = links|selectattr('provider', 'equalto', 'lemonsqueezy')|list %}
+{% set paddle_links = links|selectattr('provider', 'equalto', 'paddle')|list %}
 {% set safepay_links = links|selectattr('provider', 'equalto', 'safepay')|list %}
 <div class="page-head">
   <div><h1>Billing</h1><p>Hosted checkout links, manual reconciliation, and a clean invoice ledger.</p></div>
@@ -26,10 +26,10 @@
 
 <div class="provider-grid" style="margin-bottom:14px">
   <div class="provider">
-    <h3><svg class="icon"><use href="#i-globe"/></svg>Lemon Squeezy <span class="chip amber">recommended</span></h3>
-    <p>Merchant of record for international cards, subscriptions, invoices, and tax. Payouts to Pakistan bank accounts. Fees: 5% + 50¢, +1.5% international, +0.5% subscription.</p>
-    {% if lemon_links %}<span class="chip green">{{ lemon_links|length }} checkout link{{ '' if lemon_links|length == 1 else 's' }}</span>{% else %}<span class="chip gray">No checkout links yet</span>{% endif %}
-    {% if lemon_url %}<a class="btn sm" href="{{ lemon_url }}" target="_blank" rel="noopener">Open store <svg class="icon"><use href="#i-external"/></svg></a>{% endif %}
+    <h3><svg class="icon"><use href="#i-globe"/></svg>Paddle <span class="chip amber">recommended</span></h3>
+    <p>Merchant of record for international cards, subscriptions, invoices, and tax. Payouts to Pakistan bank accounts. Fees: 5% + 50¢ per transaction, with no separate international or subscription surcharge. Paddle sells software only. Lemon Squeezy closed to new stores on 16 Nov 2026.</p>
+    {% if paddle_links %}<span class="chip green">{{ paddle_links|length }} checkout link{{ '' if paddle_links|length == 1 else 's' }}</span>{% else %}<span class="chip gray">No checkout links yet</span>{% endif %}
+    {% if paddle_url %}<a class="btn sm" href="{{ paddle_url }}" target="_blank" rel="noopener">Open dashboard <svg class="icon"><use href="#i-external"/></svg></a>{% endif %}
   </div>
   <div class="provider">
     <h3><svg class="icon"><use href="#i-zap"/></svg>Safepay <span class="chip blue">local Pakistan</span></h3>
@@ -120,7 +120,7 @@
           <tr>
             <td>{{ link.label }}</td>
             <td class="muted">{{ link.display_name }}</td>
-            <td class="muted">{{ 'Lemon Squeezy' if link.provider == 'lemonsqueezy' else ('Safepay' if link.provider == 'safepay' else 'Other') }}</td>
+            <td class="muted">{{ 'Lemon Squeezy' if link.provider == 'lemonsqueezy' else ('Paddle' if link.provider == 'paddle' else ('Safepay' if link.provider == 'safepay' else 'Other')) }}</td>
             <td class="muted">{{ link.kind }}</td>
             <td class="mono">{{ link.invoice_number or '—' }}</td>
             <td>{{ chip('active' if link.status == 'active' else 'void') }}</td>
@@ -306,7 +306,7 @@
         <div class="field"><label for="linkLabel">Label</label><input class="input" id="linkLabel" name="label" maxlength="80" placeholder="Starter plan checkout" required></div>
         <div class="field"><label for="linkUrl">Public URL</label><input class="input" id="linkUrl" name="url" type="url" maxlength="2048" placeholder="https://checkout.lemonsqueezy.com/…" required></div>
         <div class="form-grid">
-          <div class="field"><label for="linkProvider">Provider</label><select class="input" id="linkProvider" name="provider" style="width:100%">{% for provider in providers %}<option value="{{ provider }}">{{ 'Lemon Squeezy' if provider == 'lemonsqueezy' else ('Safepay' if provider == 'safepay' else 'Other') }}</option>{% endfor %}</select></div>
+          <div class="field"><label for="linkProvider">Provider</label><select class="input" id="linkProvider" name="provider" style="width:100%">{% for provider in providers %}<option value="{{ provider }}">{{ 'Lemon Squeezy' if provider == 'lemonsqueezy' else ('Paddle' if provider == 'paddle' else ('Safepay' if provider == 'safepay' else 'Other')) }}</option>{% endfor %}</select></div>
           <div class="field"><label for="linkKind">Type</label><select class="input" id="linkKind" name="kind" style="width:100%"><option value="checkout">Checkout</option><option value="portal">Customer portal</option></select></div>
         </div>
         <div class="field" style="margin-bottom:0"><label for="linkAmount">Amount <span class="faint">(optional)</span></label><input class="input" id="linkAmount" name="amount" placeholder="90.00"></div>

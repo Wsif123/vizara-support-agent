@@ -1243,6 +1243,7 @@ def billing_page(request: Request):
                 "today": billing.today().isoformat(),
                 "default_due": (billing.today() + timedelta(days=7)).isoformat(),
                 "lemon_url": os.getenv("LEMON_SQUEEZY_STORE_URL", "").strip(),
+                "paddle_url": os.getenv("PADDLE_STORE_URL", "").strip(),
                 "safepay_url": os.getenv("SAFEPAY_STORE_URL", "").strip(),
             }
         )

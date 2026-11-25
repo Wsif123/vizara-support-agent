@@ -152,9 +152,8 @@ If you need the client's email prefilled, Paddle checkout links support query pa
 ### 4.4 Attach the link in the console
 
 1. Open **Billing → New payment link**.
-2. Choose provider **Other** — the dropdown still lists Lemon Squeezy and Safepay only — and
-   put `paddle` in the link label so the ledger stays readable. Kind **checkout**, paste the
-   live URL.
+2. Choose provider **Paddle**, kind **checkout**, paste the live URL. (Polar and Dodo have no
+   entry of their own — use **Other** and put the provider name in the link label.)
 3. Optionally attach it to an invoice and set the amount.
 4. The URL must start with `https://`. `javascript:` and malformed URLs are rejected.
 5. Open **Billing → Invoices → Add link** if you prefer to attach it directly to an invoice.
@@ -164,8 +163,7 @@ If you need the client's email prefilled, Paddle checkout links support query pa
 1. Send the client the invoice and the checkout link (email/WhatsApp/your normal channel).
 2. The client pays on Paddle's page; they get a receipt from the provider.
 3. When the transaction/settlement appears in the Paddle dashboard, open the invoice in the
-   console and **Record payment**: method `other` with `paddle <transaction id>` in the note
-   (the method list predates Paddle), plus the date.
+   console and **Record payment**: method `paddle`, date, optional note/reference.
 4. Recording payment extends the linked subscription one period. Confirm the new period end.
 5. If the client pays the setup fee and subscription separately, record each invoice/payment
    separately so the ledger matches the provider.

@@ -15,8 +15,8 @@ from urllib.parse import urlparse
 from admin import onboarding
 from admin.db import now_iso
 
-METHODS = ["bank", "wise", "lemonsqueezy", "safepay", "cash", "other"]
-PROVIDERS = ["lemonsqueezy", "safepay", "other"]
+METHODS = ["bank", "wise", "lemonsqueezy", "paddle", "safepay", "cash", "other"]
+PROVIDERS = ["lemonsqueezy", "paddle", "safepay", "other"]
 BILLING_STATUSES = {"active", "past_due", "suspended"}
 BILLING_REMINDERS = {
     "suspended": "Suspend applied locally — push to deploy.",

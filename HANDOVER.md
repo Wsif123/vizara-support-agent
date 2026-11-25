@@ -288,7 +288,8 @@ Set these in Render (Settings → Environment) and in `.env` locally. `.env` is 
 | `PUBLIC_BOT_URL` | optional | Public backend URL used in console widget snippets/health links |
 | `RENDER_DEMO_URL` | optional | Render service URL shown on the console Settings page |
 | `DATABASE_URL` | optional | Neon/Postgres connection string for live conversation reads |
-| `LEMON_SQUEEZY_STORE_URL` | optional | Shown on the Billing page |
+| `LEMON_SQUEEZY_STORE_URL` | optional | Shown on the Billing page (legacy provider) |
+| `PADDLE_STORE_URL` | optional | Shown on the Billing page |
 | `SAFEPAY_STORE_URL` | optional | Shown on the Billing page |
 | `VIZARA_ADMIN_DB` | test only | Override the console SQLite path |
 | `VIZARA_ADMIN_BACKUPS` | test only | Override the backup directory |
